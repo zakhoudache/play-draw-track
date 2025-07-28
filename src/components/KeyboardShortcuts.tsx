@@ -28,10 +28,10 @@ export const KeyboardShortcuts = ({ className }: KeyboardShortcutsProps) => {
               <span>Draw</span>
               <Badge variant="outline" className="text-xs">B</Badge>
             </div>
-            <div className="flex justify-between">
-              <span>Rectangle</span>
-              <Badge variant="outline" className="text-xs">R</Badge>
-            </div>
+           <div className="flex justify-between">
+  <span>Rectangle</span>
+  <Badge variant="outline" className="text-xs">Alt+R</Badge>
+</div>
             <div className="flex justify-between">
               <span>Circle</span>
               <Badge variant="outline" className="text-xs">C</Badge>
