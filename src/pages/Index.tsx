@@ -1,21 +1,14 @@
-import { useState, useRef } from "react";
+// pages/Index.tsx
+import { useState, useRef, useEffect } from "react";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { DrawingCanvas, DrawingCanvasRef } from "@/components/DrawingCanvas";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
-import { Timeline } from "@/components/Timeline";
+import { Timeline, type Clip } from "@/components/Timeline";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileVideo, Info } from "lucide-react";
 import { toast } from "sonner";
-
-interface Clip {
-  id: string;
-  name: string;
-  startTime: number;
-  endTime: number;
-  color: string;
-}
 
 const Index = () => {
   const [videoSrc, setVideoSrc] = useState<string>("");
@@ -25,11 +18,20 @@ const Index = () => {
   const [activeColor, setActiveColor] = useState("#0EA5E9");
   const [brushSize, setBrushSize] = useState(3);
   const [clips, setClips] = useState<Clip[]>([]);
-  const [selectedClip, setSelectedClip] = useState<Clip>();
+  const [selectedClip, setSelectedClip] = useState<Clip | undefined>(undefined);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 450 });
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DrawingCanvasRef>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Match Info
+  const [matchInfo, setMatchInfo] = useState({
+    date: "",
+    homeTeam: "",
+    awayTeam: "",
+    competition: "",
+  });
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -42,64 +44,97 @@ const Index = () => {
 
     const url = URL.createObjectURL(file);
     setVideoSrc(url);
-    toast(`Loaded ${file.name}`);
+    setMatchInfo({
+      date: new Date().toLocaleDateString(),
+      homeTeam: "",
+      awayTeam: "",
+      competition: "",
+    });
+    resetState();
   };
+
+  const resetState = () => {
+    setVideoDuration(0);
+    setCurrentTime(0);
+    setClips([]);
+    setSelectedClip(undefined);
+  };
+
+  // Sync canvas size with video
+  useEffect(() => {
+    const updateSize = () => {
+      if (videoRef.current) {
+        setCanvasSize({
+          width: videoRef.current.clientWidth,
+          height: videoRef.current.clientHeight,
+        });
+      }
+    };
+    window.addEventListener("resize", updateSize);
+    if (videoSrc) updateSize();
+    return () => window.removeEventListener("resize", updateSize);
+  }, [videoSrc]);
 
   const handleVideoLoadedData = (duration: number) => {
     setVideoDuration(duration);
   };
 
-  const handleTimeUpdate = (currentTime: number, duration: number) => {
-    setCurrentTime(currentTime);
+  const handleTimeUpdate = (time: number, duration: number) => {
+    setCurrentTime(time);
   };
 
   const handleClipCreate = (clipData: Omit<Clip, "id">) => {
-    const newClip: Clip = {
+    const newClip = {
       ...clipData,
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
+      annotations: "",
     };
-    setClips(prev => [...prev, newClip]);
+    setClips((prev) => [...prev, newClip]);
+    setSelectedClip(newClip);
+    toast.success(`Clip created: ${newClip.name}`);
   };
 
   const handleClipSelect = (clip: Clip) => {
     setSelectedClip(clip);
-  };
+    if (!canvasRef.current) return;
 
-  const handleClearCanvas = () => {
-    if (canvasRef.current?.clearCanvas) {
-      canvasRef.current.clearCanvas();
-    }
-  };
+    canvasRef.current.clearCanvas();
 
-  const handleDeleteSelected = () => {
-    if (canvasRef.current?.deleteSelected) {
-      canvasRef.current.deleteSelected();
-    }
-  };
-
-  const handleUndo = () => {
-    if (canvasRef.current?.undo) {
-      canvasRef.current.undo();
-    }
-  };
-
-  const handleRedo = () => {
-    if (canvasRef.current?.redo) {
-      canvasRef.current.redo();
+    if (clip.annotations) {
+      try {
+        const json = JSON.parse(clip.annotations);
+        const fabricCanvas = (canvasRef.current as any).fabricCanvas;
+        fabricCanvas.loadFromJSON(json, () => fabricCanvas.renderAll());
+      } catch (e) {
+        toast.error("Failed to load drawings");
+      }
     }
   };
 
   const handleSave = () => {
-    if (canvasRef.current?.saveAnnotations) {
-      canvasRef.current.saveAnnotations();
+    if (!selectedClip || !canvasRef.current) {
+      toast.error("No clip selected");
+      return;
     }
+    const json = canvasRef.current.saveAnnotations();
+    setClips((prev) =>
+      prev.map((c) => (c.id === selectedClip.id ? { ...c, annotations: json } : c))
+    );
+    toast.success("Annotations saved");
   };
 
   const handleExport = () => {
-    if (canvasRef.current?.exportAsImage) {
-      canvasRef.current.exportAsImage();
+    if (!selectedClip) {
+      toast.error("Select a clip first");
+      return;
     }
+    canvasRef.current?.exportAsImage();
   };
+
+  const handleClearCanvas = () => canvasRef.current?.clearCanvas();
+  const handleDeleteSelected = () => canvasRef.current?.deleteSelected();
+  const handleUndo = () => canvasRef.current?.undo();
+  const handleRedo = () => canvasRef.current?.redo();
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,14 +143,13 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+              <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <FileVideo className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
                 PlayDrawTrack
               </h1>
             </div>
-            
             <div className="flex items-center gap-2">
               <input
                 ref={fileInputRef}
@@ -124,12 +158,8 @@ const Index = () => {
                 onChange={handleFileUpload}
                 className="hidden"
               />
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                className="gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                Upload Video
+              <Button onClick={() => fileInputRef.current?.click()} className="gap-2">
+                <Upload className="h-4 w-4" /> Upload Video
               </Button>
             </div>
           </div>
@@ -154,8 +184,7 @@ const Index = () => {
                   size="lg"
                   className="gap-2"
                 >
-                  <Upload className="h-5 w-5" />
-                  Choose Video File
+                  <Upload className="h-5 w-5" /> Choose Video File
                 </Button>
               </div>
             </div>
@@ -165,7 +194,35 @@ const Index = () => {
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
             {/* Video and Canvas */}
             <div className="xl:col-span-3 space-y-4">
-              {/* Drawing Toolbar */}
+              {/* Match Info Form */}
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  placeholder="Date"
+                  value={matchInfo.date}
+                  onChange={(e) => setMatchInfo({ ...matchInfo, date: e.target.value })}
+                  className="px-3 py-2 border rounded text-sm"
+                />
+                <input
+                  placeholder="Competition"
+                  value={matchInfo.competition}
+                  onChange={(e) => setMatchInfo({ ...matchInfo, competition: e.target.value })}
+                  className="px-3 py-2 border rounded text-sm"
+                />
+                <input
+                  placeholder="Home Team"
+                  value={matchInfo.homeTeam}
+                  onChange={(e) => setMatchInfo({ ...matchInfo, homeTeam: e.target.value })}
+                  className="px-3 py-2 border rounded text-sm"
+                />
+                <input
+                  placeholder="Away Team"
+                  value={matchInfo.awayTeam}
+                  onChange={(e) => setMatchInfo({ ...matchInfo, awayTeam: e.target.value })}
+                  className="px-3 py-2 border rounded text-sm"
+                />
+              </div>
+
+              {/* Toolbar */}
               <DrawingToolbar
                 activeTool={activeTool}
                 onToolChange={setActiveTool}
@@ -181,33 +238,40 @@ const Index = () => {
                 onExport={handleExport}
               />
 
-              {/* Video Player with Drawing Canvas */}
+              {/* Video + Canvas */}
               <div className="relative">
                 <VideoPlayer
+                  ref={videoRef}
                   src={videoSrc}
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedData={handleVideoLoadedData}
-                  className="relative"
                 />
-                
-                {/* Drawing Canvas Overlay */}
                 <div className="absolute inset-0 pointer-events-none">
-                  <div className="relative w-full h-full">
-                    <DrawingCanvas
-                      ref={canvasRef}
-                      width={canvasSize.width}
-                      height={canvasSize.height}
-                      activeTool={activeTool}
-                      activeColor={activeColor}
-                      brushSize={brushSize}
-                      className="absolute top-0 left-0"
-                    />
-                  </div>
+                  <DrawingCanvas
+                    ref={canvasRef}
+                    width={canvasSize.width}
+                    height={canvasSize.height}
+                    activeTool={activeTool}
+                    activeColor={activeColor}
+                    brushSize={brushSize}
+                  />
                 </div>
+
+                {/* Match Overlay */}
+                {matchInfo.homeTeam && matchInfo.awayTeam && (
+                  <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                    {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
+                  </div>
+                )}
+                {selectedClip?.name && (
+                  <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                    {selectedClip.name}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Timeline and Clips */}
+            {/* Sidebar */}
             <div className="space-y-4">
               <Timeline
                 duration={videoDuration}
@@ -217,7 +281,7 @@ const Index = () => {
                 onClipSelect={handleClipSelect}
                 selectedClip={selectedClip}
               />
-              
+
               {selectedClip && (
                 <Card className="p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -231,16 +295,16 @@ const Index = () => {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Duration: </span>
-                      <span className="font-medium">{Math.round(selectedClip.endTime - selectedClip.startTime)}s</span>
+                      <span className="font-medium">{(selectedClip.endTime - selectedClip.startTime).toFixed(1)}s</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Start: </span>
-                      <span className="font-medium">{Math.round(selectedClip.startTime)}s</span>
+                      <span className="font-medium">{selectedClip.startTime.toFixed(1)}s</span>
                     </div>
                   </div>
                 </Card>
               )}
-              
+
               <KeyboardShortcuts />
             </div>
           </div>
