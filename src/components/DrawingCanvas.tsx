@@ -5,7 +5,7 @@ import { toast } from "sonner";
 interface DrawingCanvasProps {
   width: number;
   height: number;
-  activeTool: "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text";
+type ToolType = "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse";
   activeColor: string;
   brushSize: number;
   onAnnotationChange?: (annotations: any) => void;
@@ -24,8 +24,8 @@ export interface DrawingCanvasRef {
 export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   width,
   height,
-  activeTool,
-  activeColor,
+activeTool: ToolType,
+activeColor,
   brushSize,
   onAnnotationChange,
   className
@@ -103,7 +103,24 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       fabricCanvas.add(circle);
       fabricCanvas.setActiveObject(circle);
       saveToHistory();
-    } else if (activeTool === "line") {
+    }else if (activeTool === "ellipse") {
+  const ellipse = new fabric.Ellipse({
+    left: 50,
+    top: 50,
+    fill: "transparent",
+    stroke: activeColor,
+    strokeWidth: brushSize,
+    rx: 40,  // horizontal radius
+    ry: 60,  // vertical radius (taller than wide → football player ring)
+    cornerStyle: "circle",
+    cornerColor: activeColor,
+    cornerSize: 8,
+    hasRotatingPoint: false,
+  });
+  fabricCanvas.add(ellipse);
+  fabricCanvas.setActiveObject(ellipse);
+  saveToHistory();
+} else if (activeTool === "line") {
       const line = new Line([50, 50, 150, 50], {
         stroke: activeColor,
         strokeWidth: brushSize,
@@ -184,6 +201,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
+            case 'e':
+  if (!e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    onToolChange("ellipse");
+  }
+  break;
           case 'z':
             e.preventDefault();
             if (e.shiftKey) {
