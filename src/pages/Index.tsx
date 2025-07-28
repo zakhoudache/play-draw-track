@@ -14,7 +14,7 @@ const Index = () => {
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [activeTool, setActiveTool] = useState<"select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text">("select");
+  const [activeTool, setActiveTool] = useState<"select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse">("select");
   const [activeColor, setActiveColor] = useState("#0EA5E9");
   const [brushSize, setBrushSize] = useState(3);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -87,7 +87,7 @@ const Index = () => {
     const newClip = {
       ...clipData,
       id: crypto.randomUUID(),
-      annotations: "",
+      annotations: "", // Will store Fabric.js JSON
     };
     setClips((prev) => [...prev, newClip]);
     setSelectedClip(newClip);
