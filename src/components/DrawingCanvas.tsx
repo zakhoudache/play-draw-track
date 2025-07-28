@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "re
 import { Canvas as FabricCanvas, Circle, Rect, Path, Line, Polygon, IText, Ellipse } from "fabric";
 import { toast } from "sonner";
 
-// Define tool types
 type ToolType = "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse";
 
 interface DrawingCanvasProps {
@@ -42,7 +41,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         selection: activeTool === "select",
       });
 
-      // Configure free drawing brush
       if (canvas.freeDrawingBrush) {
         canvas.freeDrawingBrush.color = activeColor;
         canvas.freeDrawingBrush.width = brushSize;
@@ -55,7 +53,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       };
     }, [width, height]);
 
-    // Update canvas state based on props
     useEffect(() => {
       if (!fabricCanvas) return;
 
@@ -68,7 +65,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       }
     }, [activeTool, activeColor, brushSize, fabricCanvas]);
 
-    // Handle shape creation
     useEffect(() => {
       if (!fabricCanvas) return;
 
@@ -106,11 +102,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
           const ellipse = new Ellipse({
             left: 50,
             top: 50,
+            rx: 40,
+            ry: 60,
             fill: "transparent",
             stroke: activeColor,
             strokeWidth: brushSize,
-            rx: 40,
-            ry: 60,
             cornerStyle: "circle",
             cornerColor: activeColor,
             cornerSize: 8,
@@ -162,11 +158,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         } else {
           return;
         }
-
         saveToHistory();
       };
 
-      // Only trigger on tool change (not on every render)
       const toolCreationEvents = ["rectangle", "circle", "ellipse", "line", "triangle", "text"];
       if (toolCreationEvents.includes(activeTool)) {
         addShape();
@@ -182,7 +176,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       setHistoryIndex(newHistory.length - 1);
     };
 
-    // Handle canvas events and keyboard shortcuts
     useEffect(() => {
       if (!fabricCanvas) return;
 
@@ -205,13 +198,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       fabricCanvas.on("path:created", handlePathCreated);
 
       const handleKeyDown = (e: KeyboardEvent) => {
-        // Handle Ctrl/Cmd shortcuts
         if (e.ctrlKey || e.metaKey) {
           switch (e.key.toLowerCase()) {
             case 'z':
               e.preventDefault();
-              if (e.shiftKey) redo();
-              else undo();
+              if (e.shiftKey) redo(); else undo();
               break;
             case 'y':
               e.preventDefault();
@@ -229,14 +220,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
           return;
         }
 
-        // Handle single key shortcuts
         switch (e.key.toLowerCase()) {
           case 'e':
-            // Only trigger ellipse tool if not Ctrl+E (export)
             if (!e.ctrlKey && !e.metaKey) {
               e.preventDefault();
-              // You can emit an event or use context to change tool
-              // Since we can't call onToolChange here, consider a ref or context
+              // You'd need to emit this to parent
               console.warn("Pressing 'E' selects ellipse tool — connect via parent state");
             }
             break;
@@ -299,7 +287,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       if (!fabricCanvas) return "";
       const json = JSON.stringify(fabricCanvas.toJSON());
       toast("Annotations saved");
-      return json; // Just return — don't download
+      return json;
     };
 
     const exportAsImage = () => {
@@ -316,7 +304,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       toast("Canvas exported as image");
     };
 
-    // Expose methods to parent
     useImperativeHandle(ref, () => ({
       clearCanvas,
       deleteSelected,
