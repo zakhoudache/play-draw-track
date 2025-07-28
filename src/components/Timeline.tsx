@@ -11,6 +11,7 @@ interface Clip {
   startTime: number;
   endTime: number;
   color: string;
+  annotations?: string; // ← Add this
 }
 
 interface TimelineProps {
