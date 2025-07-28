@@ -71,6 +71,15 @@ export const DrawingToolbar = ({
       <div className="flex items-center gap-1">
         <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
           <Button
+  variant={activeTool === "ellipse" ? "default" : "ghost"}
+  size="sm"
+  onClick={() => onToolChange("ellipse")}
+  className="h-8 w-8 p-0"
+  title="Player Circle (E)"
+>
+  <Circle className="h-4 w-4" />
+</Button>
+          <Button
   variant="outline"
   size="sm"
   onClick={() => {
