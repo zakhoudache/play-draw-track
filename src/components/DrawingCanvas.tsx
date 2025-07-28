@@ -264,18 +264,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   };
 
   const saveAnnotations = () => {
-    if (!fabricCanvas) return "";
-    const annotations = JSON.stringify(fabricCanvas.toJSON());
-    const blob = new Blob([annotations], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `annotations-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("Annotations saved");
-    return annotations;
-  };
+  if (!fabricCanvas) return "";
+  const json = JSON.stringify(fabricCanvas.toJSON());
+  toast("Annotations saved");
+  return json; // Just return — don't download
+};
 
   const exportAsImage = () => {
     if (!fabricCanvas) return;
