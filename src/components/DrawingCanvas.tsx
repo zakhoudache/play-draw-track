@@ -1,11 +1,15 @@
+// components/DrawingCanvas.tsx
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, Circle, Rect, Path, Line, Polygon, IText } from "fabric";
+import { Canvas as FabricCanvas, Circle, Rect, Path, Line, Polygon, IText, Ellipse } from "fabric";
 import { toast } from "sonner";
+
+// Define tool types
+type ToolType = "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse";
 
 interface DrawingCanvasProps {
   width: number;
   height: number;
-type ToolType = "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse";
+  activeTool: ToolType;
   activeColor: string;
   brushSize: number;
   onAnnotationChange?: (annotations: any) => void;
@@ -21,313 +25,321 @@ export interface DrawingCanvasRef {
   exportAsImage: () => void;
 }
 
-export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
-  width,
-  height,
-activeTool: ToolType,
-activeColor,
-  brushSize,
-  onAnnotationChange,
-  className
-}, ref) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
+  ({ width, height, activeTool, activeColor, brushSize, onAnnotationChange, className }, ref) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
+    const [history, setHistory] = useState<string[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
 
-  useEffect(() => {
-    if (!canvasRef.current) return;
+    useEffect(() => {
+      if (!canvasRef.current) return;
 
-    const canvas = new FabricCanvas(canvasRef.current, {
-      width,
-      height,
-      backgroundColor: "transparent",
-      selection: activeTool === "select",
-    });
+      const canvas = new FabricCanvas(canvasRef.current, {
+        width,
+        height,
+        backgroundColor: "transparent",
+        selection: activeTool === "select",
+      });
 
-    // Configure free drawing brush
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = activeColor;
-      canvas.freeDrawingBrush.width = brushSize;
-    }
+      // Configure free drawing brush
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.color = activeColor;
+        canvas.freeDrawingBrush.width = brushSize;
+      }
 
-    setFabricCanvas(canvas);
+      setFabricCanvas(canvas);
 
-    return () => {
-      canvas.dispose();
-    };
-  }, [width, height]);
+      return () => {
+        canvas.dispose();
+      };
+    }, [width, height]);
 
-  useEffect(() => {
-    if (!fabricCanvas) return;
+    // Update canvas state based on props
+    useEffect(() => {
+      if (!fabricCanvas) return;
 
-    // Update canvas interaction mode
-    fabricCanvas.isDrawingMode = activeTool === "draw";
-    fabricCanvas.selection = activeTool === "select";
+      fabricCanvas.isDrawingMode = activeTool === "draw";
+      fabricCanvas.selection = activeTool === "select";
 
-    // Update brush properties
-    if (fabricCanvas.freeDrawingBrush) {
-      fabricCanvas.freeDrawingBrush.color = activeColor;
-      fabricCanvas.freeDrawingBrush.width = brushSize;
-    }
+      if (fabricCanvas.freeDrawingBrush) {
+        fabricCanvas.freeDrawingBrush.color = activeColor;
+        fabricCanvas.freeDrawingBrush.width = brushSize;
+      }
+    }, [activeTool, activeColor, brushSize, fabricCanvas]);
 
     // Handle shape creation
-    if (activeTool === "rectangle") {
-      const rect = new Rect({
-        left: 50,
-        top: 50,
-        fill: "transparent",
-        stroke: activeColor,
-        strokeWidth: brushSize,
-        width: 100,
-        height: 60,
-        cornerStyle: "circle",
-        cornerColor: activeColor,
-        cornerSize: 8,
-      });
-      fabricCanvas.add(rect);
-      fabricCanvas.setActiveObject(rect);
-      saveToHistory();
-    } else if (activeTool === "circle") {
-      const circle = new Circle({
-        left: 50,
-        top: 50,
-        fill: "transparent",
-        stroke: activeColor,
-        strokeWidth: brushSize,
-        radius: 50,
-        cornerStyle: "circle",
-        cornerColor: activeColor,
-        cornerSize: 8,
-      });
-      fabricCanvas.add(circle);
-      fabricCanvas.setActiveObject(circle);
-      saveToHistory();
-    }else if (activeTool === "ellipse") {
-  const ellipse = new fabric.Ellipse({
-    left: 50,
-    top: 50,
-    fill: "transparent",
-    stroke: activeColor,
-    strokeWidth: brushSize,
-    rx: 40,  // horizontal radius
-    ry: 60,  // vertical radius (taller than wide → football player ring)
-    cornerStyle: "circle",
-    cornerColor: activeColor,
-    cornerSize: 8,
-    hasRotatingPoint: false,
-  });
-  fabricCanvas.add(ellipse);
-  fabricCanvas.setActiveObject(ellipse);
-  saveToHistory();
-} else if (activeTool === "line") {
-      const line = new Line([50, 50, 150, 50], {
-        stroke: activeColor,
-        strokeWidth: brushSize,
-        selectable: true,
-        cornerStyle: "circle",
-        cornerColor: activeColor,
-        cornerSize: 8,
-      });
-      fabricCanvas.add(line);
-      fabricCanvas.setActiveObject(line);
-      saveToHistory();
-    } else if (activeTool === "triangle") {
-      const triangle = new Polygon([
-        { x: 100, y: 0 },
-        { x: 0, y: 100 },
-        { x: 200, y: 100 }
-      ], {
-        left: 50,
-        top: 50,
-        fill: "transparent",
-        stroke: activeColor,
-        strokeWidth: brushSize,
-        cornerStyle: "circle",
-        cornerColor: activeColor,
-        cornerSize: 8,
-      });
-      fabricCanvas.add(triangle);
-      fabricCanvas.setActiveObject(triangle);
-      saveToHistory();
-    } else if (activeTool === "text") {
-      const text = new IText("Click to edit", {
-        left: 50,
-        top: 50,
-        fill: activeColor,
-        fontSize: Math.max(16, brushSize * 4),
-        fontFamily: "Arial",
-        cornerStyle: "circle",
-        cornerColor: activeColor,
-        cornerSize: 8,
-      });
-      fabricCanvas.add(text);
-      fabricCanvas.setActiveObject(text);
-      saveToHistory();
-    }
-  }, [activeTool, activeColor, brushSize, fabricCanvas]);
+    useEffect(() => {
+      if (!fabricCanvas) return;
 
-  const saveToHistory = () => {
-    if (!fabricCanvas) return;
-    const canvasState = JSON.stringify(fabricCanvas.toJSON());
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(canvasState);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
+      const addShape = () => {
+        if (activeTool === "rectangle") {
+          const rect = new Rect({
+            left: 50,
+            top: 50,
+            fill: "transparent",
+            stroke: activeColor,
+            strokeWidth: brushSize,
+            width: 100,
+            height: 60,
+            cornerStyle: "circle",
+            cornerColor: activeColor,
+            cornerSize: 8,
+          });
+          fabricCanvas.add(rect);
+          fabricCanvas.setActiveObject(rect);
+        } else if (activeTool === "circle") {
+          const circle = new Circle({
+            left: 50,
+            top: 50,
+            fill: "transparent",
+            stroke: activeColor,
+            strokeWidth: brushSize,
+            radius: 50,
+            cornerStyle: "circle",
+            cornerColor: activeColor,
+            cornerSize: 8,
+          });
+          fabricCanvas.add(circle);
+          fabricCanvas.setActiveObject(circle);
+        } else if (activeTool === "ellipse") {
+          const ellipse = new Ellipse({
+            left: 50,
+            top: 50,
+            fill: "transparent",
+            stroke: activeColor,
+            strokeWidth: brushSize,
+            rx: 40,
+            ry: 60,
+            cornerStyle: "circle",
+            cornerColor: activeColor,
+            cornerSize: 8,
+            hasRotatingPoint: false,
+          });
+          fabricCanvas.add(ellipse);
+          fabricCanvas.setActiveObject(ellipse);
+        } else if (activeTool === "line") {
+          const line = new Line([50, 50, 150, 50], {
+            stroke: activeColor,
+            strokeWidth: brushSize,
+            selectable: true,
+            cornerStyle: "circle",
+            cornerColor: activeColor,
+            cornerSize: 8,
+          });
+          fabricCanvas.add(line);
+          fabricCanvas.setActiveObject(line);
+        } else if (activeTool === "triangle") {
+          const triangle = new Polygon([
+            { x: 100, y: 0 },
+            { x: 0, y: 100 },
+            { x: 200, y: 100 },
+          ], {
+            left: 50,
+            top: 50,
+            fill: "transparent",
+            stroke: activeColor,
+            strokeWidth: brushSize,
+            cornerStyle: "circle",
+            cornerColor: activeColor,
+            cornerSize: 8,
+          });
+          fabricCanvas.add(triangle);
+          fabricCanvas.setActiveObject(triangle);
+        } else if (activeTool === "text") {
+          const text = new IText("Click to edit", {
+            left: 50,
+            top: 50,
+            fill: activeColor,
+            fontSize: Math.max(16, brushSize * 4),
+            fontFamily: "Arial",
+            cornerStyle: "circle",
+            cornerColor: activeColor,
+            cornerSize: 8,
+          });
+          fabricCanvas.add(text);
+          fabricCanvas.setActiveObject(text);
+        } else {
+          return;
+        }
 
-  useEffect(() => {
-    if (!fabricCanvas) return;
+        saveToHistory();
+      };
 
-    const handleCanvasChange = () => {
-      const annotations = fabricCanvas.toJSON();
-      onAnnotationChange?.(annotations);
+      // Only trigger on tool change (not on every render)
+      const toolCreationEvents = ["rectangle", "circle", "ellipse", "line", "triangle", "text"];
+      if (toolCreationEvents.includes(activeTool)) {
+        addShape();
+      }
+    }, [activeTool, activeColor, brushSize, fabricCanvas]);
+
+    const saveToHistory = () => {
+      if (!fabricCanvas) return;
+      const canvasState = JSON.stringify(fabricCanvas.toJSON());
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(canvasState);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
     };
 
-    const handleObjectModified = () => {
-      saveToHistory();
-    };
+    // Handle canvas events and keyboard shortcuts
+    useEffect(() => {
+      if (!fabricCanvas) return;
 
-    const handlePathCreated = () => {
-      saveToHistory();
-    };
+      const handleCanvasChange = () => {
+        const annotations = fabricCanvas.toJSON();
+        onAnnotationChange?.(annotations);
+      };
 
-    fabricCanvas.on("object:added", handleCanvasChange);
-    fabricCanvas.on("object:modified", handleObjectModified);
-    fabricCanvas.on("object:removed", handleCanvasChange);
-    fabricCanvas.on("path:created", handlePathCreated);
+      const handleObjectModified = () => {
+        saveToHistory();
+      };
 
-    // Keyboard shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key.toLowerCase()) {
-            case 'e':
-  if (!e.ctrlKey && !e.metaKey) {
-    e.preventDefault();
-    onToolChange("ellipse");
-  }
-  break;
-          case 'z':
-            e.preventDefault();
-            if (e.shiftKey) {
+      const handlePathCreated = () => {
+        saveToHistory();
+      };
+
+      fabricCanvas.on("object:added", handleCanvasChange);
+      fabricCanvas.on("object:modified", handleObjectModified);
+      fabricCanvas.on("object:removed", handleCanvasChange);
+      fabricCanvas.on("path:created", handlePathCreated);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Handle Ctrl/Cmd shortcuts
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key.toLowerCase()) {
+            case 'z':
+              e.preventDefault();
+              if (e.shiftKey) redo();
+              else undo();
+              break;
+            case 'y':
+              e.preventDefault();
               redo();
-            } else {
-              undo();
+              break;
+            case 's':
+              e.preventDefault();
+              saveAnnotations();
+              break;
+            case 'e':
+              e.preventDefault();
+              exportAsImage();
+              break;
+          }
+          return;
+        }
+
+        // Handle single key shortcuts
+        switch (e.key.toLowerCase()) {
+          case 'e':
+            // Only trigger ellipse tool if not Ctrl+E (export)
+            if (!e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+              // You can emit an event or use context to change tool
+              // Since we can't call onToolChange here, consider a ref or context
+              console.warn("Pressing 'E' selects ellipse tool — connect via parent state");
             }
             break;
-          case 'y':
-            e.preventDefault();
-            redo();
-            break;
-          case 's':
-            e.preventDefault();
-            saveAnnotations();
-            break;
-          case 'e':
-            e.preventDefault();
-            exportAsImage();
-            break;
-        }
-      } else {
-        switch (e.key.toLowerCase()) {
           case 'delete':
           case 'backspace':
             deleteSelected();
             break;
         }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        fabricCanvas.off("object:added", handleCanvasChange);
+        fabricCanvas.off("object:modified", handleObjectModified);
+        fabricCanvas.off("object:removed", handleCanvasChange);
+        fabricCanvas.off("path:created", handlePathCreated);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [fabricCanvas, onAnnotationChange]);
+
+    const clearCanvas = () => {
+      if (!fabricCanvas) return;
+      fabricCanvas.clear();
+      toast("Canvas cleared");
+    };
+
+    const deleteSelected = () => {
+      if (!fabricCanvas) return;
+      const activeObjects = fabricCanvas.getActiveObjects();
+      if (activeObjects.length > 0) {
+        fabricCanvas.remove(...activeObjects);
+        fabricCanvas.discardActiveObject();
+        saveToHistory();
+        toast(`Deleted ${activeObjects.length} object(s)`);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      fabricCanvas.off("object:added", handleCanvasChange);
-      fabricCanvas.off("object:modified", handleObjectModified);
-      fabricCanvas.off("object:removed", handleCanvasChange);
-      fabricCanvas.off("path:created", handlePathCreated);
-      window.removeEventListener('keydown', handleKeyDown);
+    const undo = () => {
+      if (!fabricCanvas || historyIndex <= 0) return;
+      const prevState = history[historyIndex - 1];
+      setHistoryIndex(historyIndex - 1);
+      fabricCanvas.loadFromJSON(prevState, () => {
+        fabricCanvas.renderAll();
+        toast("Undone");
+      });
     };
-  }, [fabricCanvas, onAnnotationChange, history, historyIndex]);
 
-  const clearCanvas = () => {
-    if (!fabricCanvas) return;
-    fabricCanvas.clear();
-    toast("Canvas cleared");
-  };
+    const redo = () => {
+      if (!fabricCanvas || historyIndex >= history.length - 1) return;
+      const nextState = history[historyIndex + 1];
+      setHistoryIndex(historyIndex + 1);
+      fabricCanvas.loadFromJSON(nextState, () => {
+        fabricCanvas.renderAll();
+        toast("Redone");
+      });
+    };
 
-  const deleteSelected = () => {
-    if (!fabricCanvas) return;
-    const activeObjects = fabricCanvas.getActiveObjects();
-    if (activeObjects.length > 0) {
-      fabricCanvas.remove(...activeObjects);
-      fabricCanvas.discardActiveObject();
-      saveToHistory();
-      toast(`Deleted ${activeObjects.length} object(s)`);
-    }
-  };
+    const saveAnnotations = () => {
+      if (!fabricCanvas) return "";
+      const json = JSON.stringify(fabricCanvas.toJSON());
+      toast("Annotations saved");
+      return json; // Just return — don't download
+    };
 
-  const undo = () => {
-    if (!fabricCanvas || historyIndex <= 0) return;
-    const prevState = history[historyIndex - 1];
-    setHistoryIndex(historyIndex - 1);
-    fabricCanvas.loadFromJSON(prevState, () => {
-      fabricCanvas.renderAll();
-      toast("Undone");
-    });
-  };
+    const exportAsImage = () => {
+      if (!fabricCanvas) return;
+      const dataURL = fabricCanvas.toDataURL({
+        format: 'png',
+        quality: 1,
+        multiplier: 2,
+      });
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = `canvas-export-${Date.now()}.png`;
+      a.click();
+      toast("Canvas exported as image");
+    };
 
-  const redo = () => {
-    if (!fabricCanvas || historyIndex >= history.length - 1) return;
-    const nextState = history[historyIndex + 1];
-    setHistoryIndex(historyIndex + 1);
-    fabricCanvas.loadFromJSON(nextState, () => {
-      fabricCanvas.renderAll();
-      toast("Redone");
-    });
-  };
+    // Expose methods to parent
+    useImperativeHandle(ref, () => ({
+      clearCanvas,
+      deleteSelected,
+      undo,
+      redo,
+      saveAnnotations,
+      exportAsImage,
+    }), [fabricCanvas, historyIndex]);
 
-  const saveAnnotations = () => {
-  if (!fabricCanvas) return "";
-  const json = JSON.stringify(fabricCanvas.toJSON());
-  toast("Annotations saved");
-  return json; // Just return — don't download
-};
+    return (
+      <canvas
+        ref={canvasRef}
+        className={className}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          pointerEvents: "auto",
+          zIndex: 10,
+        }}
+      />
+    );
+  }
+);
 
-  const exportAsImage = () => {
-    if (!fabricCanvas) return;
-    const dataURL = fabricCanvas.toDataURL({
-      format: 'png',
-      quality: 1,
-      multiplier: 2
-    });
-    const a = document.createElement('a');
-    a.href = dataURL;
-    a.download = `canvas-export-${Date.now()}.png`;
-    a.click();
-    toast("Canvas exported as image");
-  };
-
-  // Expose methods to parent component via ref
-  useImperativeHandle(ref, () => ({
-    clearCanvas,
-    deleteSelected,
-    undo,
-    redo,
-    saveAnnotations,
-    exportAsImage,
-  }), [fabricCanvas, history, historyIndex]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        pointerEvents: "auto",
-        zIndex: 10,
-      }}
-    />
-  );
-});
+DrawingCanvas.displayName = "DrawingCanvas";
