@@ -52,6 +52,17 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// Video analysis specific colors
+				'video-bg': 'hsl(var(--video-bg))',
+				'timeline-bg': 'hsl(var(--timeline-bg))',
+				'clip-active': 'hsl(var(--clip-active))',
+				'clip-inactive': 'hsl(var(--clip-inactive))',
+				'annotation': {
+					primary: 'hsl(var(--annotation-primary))',
+					secondary: 'hsl(var(--annotation-secondary))',
+					warning: 'hsl(var(--annotation-warning))',
+					danger: 'hsl(var(--annotation-danger))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -88,7 +99,17 @@ export default {
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-primary': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+				'fade-in': 'fadeIn 0.3s ease-out'
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-accent': 'var(--gradient-accent)'
+			},
+			boxShadow: {
+				'primary': 'var(--shadow-primary)',
+				'video': 'var(--shadow-video)'
 			}
 		}
 	},
