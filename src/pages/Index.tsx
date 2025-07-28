@@ -3,9 +3,10 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { DrawingCanvas, DrawingCanvasRef } from "@/components/DrawingCanvas";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
 import { Timeline } from "@/components/Timeline";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Upload, FileVideo } from "lucide-react";
+import { Upload, FileVideo, Info } from "lucide-react";
 import { toast } from "sonner";
 
 interface Clip {
@@ -20,7 +21,7 @@ const Index = () => {
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [activeTool, setActiveTool] = useState<"select" | "draw" | "rectangle" | "circle">("select");
+  const [activeTool, setActiveTool] = useState<"select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text">("select");
   const [activeColor, setActiveColor] = useState("#0EA5E9");
   const [brushSize, setBrushSize] = useState(3);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -73,6 +74,30 @@ const Index = () => {
   const handleDeleteSelected = () => {
     if (canvasRef.current?.deleteSelected) {
       canvasRef.current.deleteSelected();
+    }
+  };
+
+  const handleUndo = () => {
+    if (canvasRef.current?.undo) {
+      canvasRef.current.undo();
+    }
+  };
+
+  const handleRedo = () => {
+    if (canvasRef.current?.redo) {
+      canvasRef.current.redo();
+    }
+  };
+
+  const handleSave = () => {
+    if (canvasRef.current?.saveAnnotations) {
+      canvasRef.current.saveAnnotations();
+    }
+  };
+
+  const handleExport = () => {
+    if (canvasRef.current?.exportAsImage) {
+      canvasRef.current.exportAsImage();
     }
   };
 
@@ -150,6 +175,10 @@ const Index = () => {
                 onBrushSizeChange={setBrushSize}
                 onClear={handleClearCanvas}
                 onDelete={handleDeleteSelected}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onSave={handleSave}
+                onExport={handleExport}
               />
 
               {/* Video Player with Drawing Canvas */}
@@ -191,23 +220,28 @@ const Index = () => {
               
               {selectedClip && (
                 <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Selected Clip</h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Info className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold">Selected Clip</h3>
+                  </div>
                   <div className="space-y-2 text-sm">
                     <div>
                       <span className="text-muted-foreground">Name: </span>
-                      {selectedClip.name}
+                      <span className="font-medium">{selectedClip.name}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Duration: </span>
-                      {Math.round(selectedClip.endTime - selectedClip.startTime)}s
+                      <span className="font-medium">{Math.round(selectedClip.endTime - selectedClip.startTime)}s</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Start: </span>
-                      {Math.round(selectedClip.startTime)}s
+                      <span className="font-medium">{Math.round(selectedClip.startTime)}s</span>
                     </div>
                   </div>
                 </Card>
               )}
+              
+              <KeyboardShortcuts />
             </div>
           </div>
         )}

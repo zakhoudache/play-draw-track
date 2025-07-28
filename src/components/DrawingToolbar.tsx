@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { 
   MousePointer, 
   Pen, 
@@ -8,19 +9,30 @@ import {
   Circle, 
   Trash2, 
   RotateCcw,
-  Palette 
+  Palette,
+  Triangle,
+  Minus,
+  Type,
+  Undo,
+  Redo,
+  Save,
+  Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DrawingToolbarProps {
-  activeTool: "select" | "draw" | "rectangle" | "circle";
-  onToolChange: (tool: "select" | "draw" | "rectangle" | "circle") => void;
+  activeTool: "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text";
+  onToolChange: (tool: "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text") => void;
   activeColor: string;
   onColorChange: (color: string) => void;
   brushSize: number;
   onBrushSizeChange: (size: number) => void;
   onClear: () => void;
   onDelete: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onSave: () => void;
+  onExport: () => void;
   className?: string;
 }
 
@@ -44,50 +56,96 @@ export const DrawingToolbar = ({
   onBrushSizeChange,
   onClear,
   onDelete,
+  onUndo,
+  onRedo,
+  onSave,
+  onExport,
   className
 }: DrawingToolbarProps) => {
   return (
     <div className={cn(
-      "flex items-center gap-4 p-4 bg-card border border-border rounded-lg shadow-lg",
+      "flex flex-wrap items-center gap-4 p-4 bg-card border border-border rounded-lg shadow-elegant",
       className
     )}>
       {/* Drawing Tools */}
       <div className="flex items-center gap-1">
-        <Button
-          variant={activeTool === "select" ? "default" : "secondary"}
-          size="sm"
-          onClick={() => onToolChange("select")}
-          className="h-9 w-9 p-0"
-        >
-          <MousePointer className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
+          <Button
+            variant={activeTool === "select" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("select")}
+            className="h-8 w-8 p-0"
+            title="Select Tool (V)"
+          >
+            <MousePointer className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeTool === "draw" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("draw")}
+            className="h-8 w-8 p-0"
+            title="Free Draw (B)"
+          >
+            <Pen className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeTool === "line" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("line")}
+            className="h-8 w-8 p-0"
+            title="Line Tool (L)"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeTool === "rectangle" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("rectangle")}
+            className="h-8 w-8 p-0"
+            title="Rectangle (R)"
+          >
+            <Square className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeTool === "circle" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("circle")}
+            className="h-8 w-8 p-0"
+            title="Circle (C)"
+          >
+            <Circle className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeTool === "triangle" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("triangle")}
+            className="h-8 w-8 p-0"
+            title="Triangle (T)"
+          >
+            <Triangle className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeTool === "text" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("text")}
+            className="h-8 w-8 p-0"
+            title="Text Tool (X)"
+          >
+            <Type className="h-4 w-4" />
+          </Button>
+        </div>
         
-        <Button
-          variant={activeTool === "draw" ? "default" : "secondary"}
-          size="sm"
-          onClick={() => onToolChange("draw")}
-          className="h-9 w-9 p-0"
-        >
-          <Pen className="h-4 w-4" />
-        </Button>
-        
-        <Button
-          variant={activeTool === "rectangle" ? "default" : "secondary"}
-          size="sm"
-          onClick={() => onToolChange("rectangle")}
-          className="h-9 w-9 p-0"
-        >
-          <Square className="h-4 w-4" />
-        </Button>
-        
-        <Button
-          variant={activeTool === "circle" ? "default" : "secondary"}
-          size="sm"
-          onClick={() => onToolChange("circle")}
-          className="h-9 w-9 p-0"
-        >
-          <Circle className="h-4 w-4" />
-        </Button>
+        {activeTool !== "select" && (
+          <Badge variant="secondary" className="ml-2 text-xs">
+            {activeTool.charAt(0).toUpperCase() + activeTool.slice(1)}
+          </Badge>
+        )}
       </div>
 
       <Separator orientation="vertical" className="h-8" />
@@ -138,24 +196,72 @@ export const DrawingToolbar = ({
 
       <Separator orientation="vertical" className="h-8" />
 
-      {/* Actions */}
-      <div className="flex items-center gap-1">
+      {/* History Actions */}
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
         <Button
-          variant="secondary"
+          variant="ghost"
+          size="sm"
+          onClick={onUndo}
+          className="h-8 w-8 p-0"
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRedo}
+          className="h-8 w-8 p-0"
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Destructive Actions */}
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
+        <Button
+          variant="ghost"
           size="sm"
           onClick={onDelete}
-          className="h-9 w-9 p-0"
+          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+          title="Delete Selected (Delete)"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
         
         <Button
-          variant="secondary"
+          variant="ghost"
           size="sm"
           onClick={onClear}
-          className="h-9 w-9 p-0"
+          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+          title="Clear All (Ctrl+Alt+C)"
         >
           <RotateCcw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Save Actions */}
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onSave}
+          className="h-8 w-8 p-0"
+          title="Save (Ctrl+S)"
+        >
+          <Save className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onExport}
+          className="h-8 w-8 p-0"
+          title="Export (Ctrl+E)"
+        >
+          <Download className="h-4 w-4" />
         </Button>
       </div>
     </div>
