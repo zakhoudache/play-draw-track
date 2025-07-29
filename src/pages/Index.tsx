@@ -1,10 +1,11 @@
 // pages/Index.tsx
 import { useState, useRef, useEffect } from "react";
-import { VideoPlayer } from "@/components/VideoPlayer";
+import { VideoPlayer, VideoPlayerRef } from "@/components/VideoPlayer";
 import { DrawingCanvas, DrawingCanvasRef } from "@/components/DrawingCanvas";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
 import { Timeline, type Clip } from "@/components/Timeline";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { TacticalOverlay } from "@/components/TacticalOverlay";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileVideo, Info } from "lucide-react";
@@ -20,10 +21,12 @@ const Index = () => {
   const [clips, setClips] = useState<Clip[]>([]);
   const [selectedClip, setSelectedClip] = useState<Clip | undefined>(undefined);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 450 });
+  const [tacticalInsights, setTacticalInsights] = useState<any[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DrawingCanvasRef>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<VideoPlayerRef>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   // Match Info
   const [matchInfo, setMatchInfo] = useState({
@@ -63,15 +66,20 @@ const Index = () => {
   // Sync canvas size with video
   useEffect(() => {
     const updateSize = () => {
-      if (videoRef.current) {
-        setCanvasSize({
-          width: videoRef.current.clientWidth,
-          height: videoRef.current.clientHeight,
-        });
+      if (videoContainerRef.current) {
+        const video = videoContainerRef.current.querySelector('video');
+        if (video) {
+          setCanvasSize({
+            width: video.clientWidth,
+            height: video.clientHeight,
+          });
+        }
       }
     };
     window.addEventListener("resize", updateSize);
-    if (videoSrc) updateSize();
+    if (videoSrc) {
+      setTimeout(updateSize, 100); // Allow video to load
+    }
     return () => window.removeEventListener("resize", updateSize);
   }, [videoSrc]);
 
@@ -96,6 +104,10 @@ const Index = () => {
 
   const handleClipSelect = (clip: Clip) => {
     setSelectedClip(clip);
+    if (videoRef.current) {
+      videoRef.current.seek(clip.startTime);
+      setCurrentTime(clip.startTime);
+    }
     if (!canvasRef.current) return;
 
     canvasRef.current.clearCanvas();
@@ -129,6 +141,16 @@ const Index = () => {
       return;
     }
     canvasRef.current?.exportAsImage();
+  };
+
+  const handleAddTacticalInsight = (insight: any) => {
+    const newInsight = {
+      ...insight,
+      id: crypto.randomUUID(),
+      clipId: selectedClip?.id
+    };
+    setTacticalInsights(prev => [...prev, newInsight]);
+    toast.success("Tactical insight added");
   };
 
   const handleClearCanvas = () => canvasRef.current?.clearCanvas();
@@ -239,7 +261,7 @@ const Index = () => {
               />
 
               {/* Video + Canvas */}
-              <div className="relative">
+              <div ref={videoContainerRef} className="relative">
                 <VideoPlayer
                   ref={videoRef}
                   src={videoSrc}
@@ -254,8 +276,16 @@ const Index = () => {
                     activeTool={activeTool}
                     activeColor={activeColor}
                     brushSize={brushSize}
+                    currentTime={currentTime}
                   />
                 </div>
+
+                {/* Tactical Overlay */}
+                <TacticalOverlay
+                  currentTime={currentTime}
+                  onAddInsight={handleAddTacticalInsight}
+                  insights={tacticalInsights.filter(i => i.clipId === selectedClip?.id)}
+                />
 
                 {/* Match Overlay */}
                 {matchInfo.homeTeam && matchInfo.awayTeam && (

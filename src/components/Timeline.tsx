@@ -5,13 +5,13 @@ import { Plus, Play, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-interface Clip {
+export interface Clip {
   id: string;
   name: string;
   startTime: number;
   endTime: number;
   color: string;
-  annotations?: string; // ← Add this
+  annotations?: string;
 }
 
 interface TimelineProps {

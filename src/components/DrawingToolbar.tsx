@@ -16,13 +16,16 @@ import {
   Undo,
   Redo,
   Save,
-  Download
+  Download,
+  Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type ToolType = "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse";
+
 interface DrawingToolbarProps {
-  activeTool: "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text";
-  onToolChange: (tool: "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text") => void;
+  activeTool: ToolType;
+  onToolChange: (tool: ToolType) => void;
   activeColor: string;
   onColorChange: (color: string) => void;
   brushSize: number;
@@ -70,44 +73,6 @@ export const DrawingToolbar = ({
       {/* Drawing Tools */}
       <div className="flex items-center gap-1">
         <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
-          <Button
-  variant={activeTool === "ellipse" ? "default" : "ghost"}
-  size="sm"
-  onClick={() => onToolChange("ellipse")}
-  className="h-8 w-8 p-0"
-  title="Player Circle (E)"
->
-  <Circle className="h-4 w-4" />
-</Button>
-          <Button
-  variant="outline"
-  size="sm"
-  onClick={() => {
-    if (!canvasRef.current) return;
-    const fabricCanvas = (canvasRef.current as any).fabricCanvas;
-    const ellipse = new fabric.Ellipse({
-      left: 100,
-      top: 100,
-      rx: 30,
-      ry: 45,
-      fill: "transparent",
-      stroke: "#EF4444",
-      strokeWidth: 4,
-    });
-    const text = new fabric.IText("10", {
-      left: 95,
-      top: 95,
-      fill: "white",
-      fontSize: 16,
-    });
-    fabricCanvas.add(ellipse, text);
-    fabricCanvas.renderAll();
-    saveToHistory();
-  }}
->
-  🎯 Player 10
-</Button>
-          
           <Button
             variant={activeTool === "select" ? "default" : "ghost"}
             size="sm"
@@ -177,11 +142,21 @@ export const DrawingToolbar = ({
           >
             <Type className="h-4 w-4" />
           </Button>
+          
+          <Button
+            variant={activeTool === "ellipse" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToolChange("ellipse")}
+            className="h-8 w-8 p-0"
+            title="Player Spotlight (E)"
+          >
+            <Target className="h-4 w-4" />
+          </Button>
         </div>
         
         {activeTool !== "select" && (
           <Badge variant="secondary" className="ml-2 text-xs">
-            {activeTool.charAt(0).toUpperCase() + activeTool.slice(1)}
+            {activeTool === "ellipse" ? "Player" : activeTool.charAt(0).toUpperCase() + activeTool.slice(1)}
           </Badge>
         )}
       </div>

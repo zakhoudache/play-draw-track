@@ -3,6 +3,7 @@ import { Canvas as FabricCanvas, Circle, Rect, Line, Polygon, IText, Ellipse, Ob
 import { toast } from "sonner";
 import { computeHomography, screenToField, fieldToScreen, Point2D } from "@/lib/homography";
 import { SOCCER_FIELD_KEYPOINTS, getSoccerFieldMarkings } from "@/lib/soccerField";
+import { PlayerTracking } from "./PlayerTracking";
 
 type ToolType = "select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse";
 
@@ -12,6 +13,7 @@ interface DrawingCanvasProps {
   activeTool: ToolType;
   activeColor: string;
   brushSize: number;
+  currentTime?: number;
   onAnnotationChange?: (annotations: any) => void;
   className?: string;
 }
@@ -26,7 +28,7 @@ export interface DrawingCanvasRef {
 }
 
 export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
-  ({ width, height, activeTool, activeColor, brushSize, onAnnotationChange, className }, ref) => {
+  ({ width, height, activeTool, activeColor, brushSize, currentTime = 0, onAnnotationChange, className }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
     const [history, setHistory] = useState<string[]>([]);
@@ -56,7 +58,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
 
     const renderFieldOverlay = (H: number[]) => {
       if (!fabricCanvas) return;
-      fabricCanvas.remove(...fabricCanvas.getObjects().filter(o => o.data?.type === "field"));
+      fabricCanvas.remove(...fabricCanvas.getObjects().filter(o => (o as any).data?.type === "field"));
 
       getSoccerFieldMarkings().forEach(mark => {
         let obj: FabricObject | null = null;
@@ -68,7 +70,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
             strokeWidth: 2,
             selectable: false,
             evented: false,
-            data: { type: "field" }
+            data: { type: "field" } as any
           });
         } else if (mark.cx !== undefined) {
           const center = fieldToScreen({ x: mark.cx, y: mark.cy! }, H)!;
@@ -83,7 +85,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
             strokeWidth: 2,
             selectable: false,
             evented: false,
-            data: { type: "field" }
+            data: { type: "field" } as any
           });
         }
         if (obj) fabricCanvas.add(obj);
@@ -142,7 +144,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
             cornerColor: activeColor,
             cornerSize: 8,
             hasRotatingPoint: false,
-            data: { type: "player", fieldX: fieldPos.x, fieldY: fieldPos.y }
+            data: { type: "player", fieldX: fieldPos.x, fieldY: fieldPos.y } as any
           });
 
           const text = new IText("10", {
@@ -275,18 +277,28 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     }), [fabricCanvas, historyIndex, homography]);
 
     return (
-      <canvas
-        ref={canvasRef}
-        className={className}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          pointerEvents: "auto",
-          zIndex: 10,
-          border: homography ? "2px solid #10B981" : "2px dashed #F59E0B"
-        }}
-      />
+      <>
+        <canvas
+          ref={canvasRef}
+          className={className}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "auto",
+            zIndex: 10,
+            border: homography ? "2px solid #10B981" : "2px dashed #F59E0B"
+          }}
+        />
+        
+        {/* Player Tracking Overlay */}
+        <PlayerTracking
+          fabricCanvas={fabricCanvas}
+          currentTime={currentTime}
+          homography={homography}
+          fieldToScreen={fieldToScreen}
+        />
+      </>
     );
   }
 );
