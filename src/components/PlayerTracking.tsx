@@ -62,19 +62,50 @@ export const PlayerTracking = ({
       const screenPos = fieldToScreen({ x: player.x, y: player.y }, homography);
       if (!screenPos) return;
 
-      // Player spotlight (elliptical)
-      const spotlight = new Ellipse({
-        left: screenPos.x - 25,
+      // Create multiple spotlight rings for enhanced visibility
+      const spotlightColors = getPlayerSpotlightColor(player);
+      
+      // Outer glow ring
+      const outerRing = new Ellipse({
+        left: screenPos.x - 35,
         top: screenPos.y - 35,
-        rx: 25,
+        rx: 35,
         ry: 35,
-        fill: "transparent",
-        stroke: player.team === "home" ? "#3B82F6" : "#10B981",
-        strokeWidth: 3,
-        strokeDashArray: [5, 5],
+        fill: spotlightColors.outer,
+        stroke: "transparent",
         selectable: false,
         evented: false,
-        opacity: 0.8,
+        opacity: 0.3,
+        data: { type: "player-tracking", playerId: player.id } as any
+      });
+
+      // Main spotlight ring
+      const spotlight = new Ellipse({
+        left: screenPos.x - 28,
+        top: screenPos.y - 28,
+        rx: 28,
+        ry: 28,
+        fill: "transparent",
+        stroke: spotlightColors.main,
+        strokeWidth: 4,
+        selectable: false,
+        evented: false,
+        opacity: 0.9,
+        data: { type: "player-tracking", playerId: player.id } as any
+      });
+
+      // Inner highlight ring
+      const innerRing = new Ellipse({
+        left: screenPos.x - 20,
+        top: screenPos.y - 20,
+        rx: 20,
+        ry: 20,
+        fill: "transparent",
+        stroke: spotlightColors.inner,
+        strokeWidth: 2,
+        selectable: false,
+        evented: false,
+        opacity: 0.7,
         data: { type: "player-tracking", playerId: player.id } as any
       });
 
@@ -120,7 +151,7 @@ export const PlayerTracking = ({
         }
       }
 
-      fabricCanvas.add(spotlight, label);
+      fabricCanvas.add(outerRing, spotlight, innerRing, label);
     });
 
     fabricCanvas.renderAll();
@@ -128,6 +159,38 @@ export const PlayerTracking = ({
 
   return null; // This component only manages canvas objects
 };
+
+// Helper function to get spotlight colors based on player characteristics
+function getPlayerSpotlightColor(player: Player) {
+  const colors = {
+    home: {
+      outer: "rgba(59, 130, 246, 0.4)", // Blue
+      main: "#3B82F6",
+      inner: "#60A5FA"
+    },
+    away: {
+      outer: "rgba(16, 185, 129, 0.4)", // Green  
+      main: "#10B981",
+      inner: "#34D399"
+    }
+  };
+
+  // Add variation based on player number for visual distinction
+  const playerNum = parseInt(player.number);
+  if (playerNum === 10) {
+    // Captain/star player - brighter colors
+    return player.team === "home" 
+      ? { outer: "rgba(239, 68, 68, 0.4)", main: "#EF4444", inner: "#F87171" } // Red
+      : { outer: "rgba(251, 191, 36, 0.4)", main: "#FBBF24", inner: "#FCD34D" }; // Yellow
+  }
+  
+  if (playerNum === 1) {
+    // Goalkeeper - distinct colors
+    return { outer: "rgba(139, 69, 19, 0.4)", main: "#8B4513", inner: "#CD853F" }; // Brown
+  }
+
+  return colors[player.team];
+}
 
 // Helper function to simulate player motion
 function getPlayerMotion(playerId: string, currentTime: number): { x: number; y: number } | null {
