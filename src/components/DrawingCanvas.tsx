@@ -288,7 +288,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
             position: "absolute",
             top: 0,
             left: 0,
-            pointerEvents: "auto",
+            pointerEvents: activeTool === "select" ? "none" : "auto",
             zIndex: 10,
             border: homography ? "2px solid #10B981" : "2px dashed #F59E0B"
           }}

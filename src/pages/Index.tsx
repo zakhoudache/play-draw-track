@@ -268,7 +268,7 @@ const Index = () => {
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedData={handleVideoLoadedData}
                 />
-                <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0">
                   <DrawingCanvas
                     ref={canvasRef}
                     width={canvasSize.width}
