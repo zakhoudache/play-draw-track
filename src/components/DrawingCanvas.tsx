@@ -119,18 +119,20 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       }
     }, [activeTool, activeColor, brushSize, fabricCanvas]);
 
-    // Handle shape creation
+    // Handle canvas clicks for shape creation
     useEffect(() => {
       if (!fabricCanvas || !homography) return;
 
-      const addShape = () => {
+      const handleCanvasClick = (e: any) => {
+        if (!["rectangle", "circle", "line", "triangle", "text", "ellipse"].includes(activeTool)) return;
+        
+        const pointer = fabricCanvas.getPointer(e.e);
         let obj: FabricObject;
-        const center = { x: width / 2, y: height / 2 };
 
         if (activeTool === "ellipse") {
-          // Auto-place player circle at center
-          const fieldPos = screenToField(center, homography) || { x: 52.5, y: 34 };
-          const screenPos = fieldToScreen(fieldPos, homography)!;
+          // Create player spotlight at click position
+          const fieldPos = screenToField(pointer, homography) || { x: 52.5, y: 34 };
+          const screenPos = fieldToScreen(fieldPos, homography) || pointer;
 
           obj = new Ellipse({
             left: screenPos.x - 40,
@@ -158,14 +160,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
           fabricCanvas.add(obj, text);
         } else if (activeTool === "rectangle") {
           obj = new Rect({
-            left: center.x - 50, top: center.y - 30,
+            left: pointer.x - 50, top: pointer.y - 30,
             width: 100, height: 60,
             fill: "transparent", stroke: activeColor, strokeWidth: brushSize,
             cornerStyle: "circle", cornerColor: activeColor, cornerSize: 8
           });
           fabricCanvas.add(obj);
         }
-        // Add other tools as needed...
 
         if (obj) {
           fabricCanvas.setActiveObject(obj);
@@ -173,10 +174,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         }
       };
 
-      if (["rectangle", "circle", "line", "triangle", "text", "ellipse"].includes(activeTool)) {
-        addShape();
-      }
-    }, [activeTool, homography]);
+      fabricCanvas.on('mouse:down', handleCanvasClick);
+      
+      return () => {
+        fabricCanvas.off('mouse:down', handleCanvasClick);
+      };
+    }, [activeTool, activeColor, brushSize, homography, fabricCanvas]);
 
     const saveToHistory = () => {
       if (!fabricCanvas) return;

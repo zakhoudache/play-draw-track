@@ -143,6 +143,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         src={src}
         className="w-full aspect-video bg-black"
         onContextMenu={(e) => e.preventDefault()}
+        onClick={togglePlay}
       />
       
       {/* Video Controls Overlay */}
