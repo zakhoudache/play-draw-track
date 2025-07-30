@@ -1,77 +1,122 @@
-// src/lib/homography.ts
-export type Point2D = { x: number; y: number };
+// Enhanced Homography implementation for football field perspective correction
+export interface Point {
+  x: number;
+  y: number;
+}
 
-// Lightweight homography solver (DLT)
-export function computeHomography(
-  srcPoints: Point2D[],
-  dstPoints: Point2D[]
-): number[] | null {
-  const n = srcPoints.length;
-  if (n < 4) return null;
+// Keep the original Point2D for backward compatibility
+export type Point2D = Point;
 
-  const A: number[][] = [];
+export class Homography {
+  static compute(srcPoints: Point[], dstPoints: Point[]): number[] | null {
+    const n = srcPoints.length;
+    if (n < 4) return null;
 
-  for (let i = 0; i < n; i++) {
-    const { x, y } = srcPoints[i];
-    const { x: xp, y: yp } = dstPoints[i];
+    const A: number[][] = [];
+    for (let i = 0; i < n; i++) {
+      const { x: x1, y: y1 } = srcPoints[i];
+      const { x: x2, y: y2 } = dstPoints[i];
+      A.push([-x1, -y1, -1, 0, 0, 0, x1 * x2, y1 * x2, x2]);
+      A.push([0, 0, 0, -x1, -y1, -1, x1 * y2, y1 * y2, y2]);
+    }
 
-    A.push(
-      [0, 0, 0, -x, -y, -1, yp * x, yp * y, yp],
-      [x, y, 1, 0, 0, 0, -xp * x, -xp * y, -xp]
-    );
+    const h = this.solve(A);
+    if (!h) return null;
+    return [...h, 1]; // Append h_88 = 1
+  }
+  
+  static solve(A: number[][]): number[] | null {
+    const n = A.length;
+    const m = A[0].length;
+    const b = A.map(row => -row[m-1]);
+    const M = A.map(row => row.slice(0, m-1));
+    
+    // Simple Gaussian elimination
+    for (let i = 0; i < Math.min(n, m - 1); i++) {
+      let max = i;
+      for (let j = i + 1; j < n; j++) {
+        if (Math.abs(M[j][i]) > Math.abs(M[max][i])) max = j;
+      }
+      [M[i], M[max]] = [M[max], M[i]];
+      [b[i], b[max]] = [b[max], b[i]];
+      
+      if (Math.abs(M[i][i]) < 1e-10) continue;
+      
+      for (let j = i + 1; j < n; j++) {
+        const f = M[j][i] / M[i][i];
+        for (let k = i; k < m - 1; k++) M[j][k] -= M[i][k] * f;
+        b[j] -= b[i] * f;
+      }
+    }
+    
+    const x = Array(m-1).fill(0);
+    for (let i = Math.min(n, m - 2); i >= 0; i--) {
+      if (Math.abs(M[i][i]) < 1e-10) continue;
+      let sum = 0;
+      for (let j = i + 1; j < m - 1; j++) sum += M[i][j] * x[j];
+      x[i] = (b[i] - sum) / M[i][i];
+    }
+    return x;
   }
 
-  // SVD-like pseudo-inverse (simplified for 4-point case)
-  const At = transpose(A);
-  const AtA = multiplyMatrix(At, A);
-  const eigen = computeEigenvalues3x3(symmetric3x3To1D(AtA));
+  static invert(H: number[]): number[] | null {
+    const h = [...H];
+    if (h.length === 8) h.push(1); // Ensure 3x3
+    const det = h[0]*(h[4]*h[8]-h[7]*h[5]) - h[1]*(h[3]*h[8]-h[5]*h[6]) + h[2]*(h[3]*h[7]-h[4]*h[6]);
+    if (Math.abs(det) < 1e-10) return null;
+    const invDet = 1 / det;
+    return [
+      (h[4]*h[8] - h[7]*h[5]) * invDet, (h[2]*h[7] - h[1]*h[8]) * invDet, (h[1]*h[5] - h[2]*h[4]) * invDet,
+      (h[5]*h[6] - h[3]*h[8]) * invDet, (h[0]*h[8] - h[2]*h[6]) * invDet, (h[3]*h[2] - h[0]*h[5]) * invDet,
+      (h[3]*h[7] - h[6]*h[4]) * invDet, (h[6]*h[1] - h[0]*h[7]) * invDet, (h[0]*h[4] - h[3]*h[1]) * invDet
+    ];
+  }
 
-  if (!eigen || eigen.length !== 9) return null;
-
-  // Last eigenvector = solution
-  const h = eigen.slice(6, 9).concat(eigen.slice(3, 6), eigen.slice(0, 3))[8] === 0 ? eigen : eigen.map(v => v / eigen[8]);
-  return h.slice(0, 9).map(v => parseFloat(v.toFixed(6)));
+  static transform(p: Point, h: number[]): Point {
+    if (!h || h.length < 9) return { x: 0, y: 0 };
+    const { x, y } = p;
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-10) return { x: Infinity, y: Infinity };
+    return {
+      x: (h[0] * x + h[1] * y + h[2]) / w,
+      y: (h[3] * x + h[4] * y + h[5]) / w
+    };
+  }
 }
 
-function transpose(matrix: number[][]) {
-  return matrix[0].map((_, i) => matrix.map(row => row[i]));
-}
+// Enhanced field calibration points for better accuracy
+export const CALIBRATION_PROMPTS = [
+  "Click the <strong>Center Spot</strong> of the pitch",
+  "Click the <strong>Top</strong> of the Center Circle (closest to goal)",
+  "Click the <strong>Right</strong> point of the Center Circle",
+  "Click the <strong>Bottom</strong> of the Center Circle (furthest from goal)", 
+  "Click the <strong>Left</strong> point of the Center Circle",
+  "Click the <strong>Midpoint</strong> of the <strong>Top Touchline</strong>",
+  "Click the <strong>Midpoint</strong> of the <strong>Bottom Touchline</strong>"
+];
 
-function multiplyMatrix(a: number[][], b: number[][]) {
-  return a.map(row => b[0].map((_, i) => row.reduce((sum, val, j) => sum + val * b[j][i], 0)));
-}
+// Destination points in real-world coordinates (meters)
+export const CALIBRATION_DST_POINTS: Point[] = [
+  { x: 52.5, y: 34 },     // Center Spot
+  { x: 52.5, y: 24.85 },  // Center Circle Top
+  { x: 61.65, y: 34 },    // Center Circle Right
+  { x: 52.5, y: 43.15 },  // Center Circle Bottom
+  { x: 43.35, y: 34 },    // Center Circle Left
+  { x: 52.5, y: 0 },      // Top Touchline Midpoint
+  { x: 52.5, y: 68 }      // Bottom Touchline Midpoint
+];
 
-function symmetric3x3To1D(m: number[][]) {
-  return [m[0][0], m[0][1], m[0][2], m[1][1], m[1][2], m[2][2]];
-}
-
-function computeEigenvalues3x3(arr: number[]): number[] {
-  // Simplified: return identity for demo
-  return [1, 0, 0, 0, 1, 0, 0, 0, 1]; // Replace with real solver in production
+// Legacy functions for backward compatibility
+export function computeHomography(srcPoints: Point2D[], dstPoints: Point2D[]): number[] | null {
+  return Homography.compute(srcPoints, dstPoints);
 }
 
 export function screenToField(point: Point2D, H: number[]): Point2D | null {
-  const [h11, h12, h13, h21, h22, h23, h31, h32, h33] = H;
-  const w = h31 * point.x + h32 * point.y + h33;
-  if (Math.abs(w) < 1e-8) return null;
-  return {
-    x: (h11 * point.x + h12 * point.y + h13) / w,
-    y: (h21 * point.x + h22 * point.y + h23) / w,
-  };
+  const result = Homography.transform(point, H);
+  return result.x === Infinity ? null : result;
 }
 
 export function fieldToScreen(point: Point2D, H: number[]): Point2D | null {
-  const invH = invertHomography(H);
+  const invH = Homography.invert(H);
   return invH ? screenToField(point, invH) : null;
-}
-
-function invertHomography(H: number[]): number[] | null {
-  const [a, b, c, d, e, f, g, h, i] = H;
-  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-  if (Math.abs(det) < 1e-10) return null;
-  return [
-    (e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det,
-    (f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det,
-    (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det
-  ];
 }

@@ -280,24 +280,45 @@ const Index = () => {
                   />
                 </div>
 
-                {/* Tactical Overlay */}
+                {/* Enhanced Tactical Overlay */}
                 <TacticalOverlay
                   currentTime={currentTime}
                   onAddInsight={handleAddTacticalInsight}
                   insights={tacticalInsights.filter(i => i.clipId === selectedClip?.id)}
                 />
 
-                {/* Match Overlay */}
+                {/* Match Info Overlay */}
                 {matchInfo.homeTeam && matchInfo.awayTeam && (
-                  <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
-                    {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
+                  <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm font-mono backdrop-blur-sm">
+                    <div className="font-semibold">{matchInfo.homeTeam} vs {matchInfo.awayTeam}</div>
+                    <div className="text-xs opacity-75">{matchInfo.date} • {matchInfo.competition}</div>
                   </div>
                 )}
+
+                {/* Clip Info Overlay */}
                 {selectedClip?.name && (
-                  <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
-                    {selectedClip.name}
+                  <div className="absolute bottom-20 left-2 bg-primary/90 text-primary-foreground px-3 py-2 rounded-lg text-sm font-medium backdrop-blur-sm">
+                    📹 {selectedClip.name}
                   </div>
                 )}
+
+                {/* Scoreboard Overlay */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                  <div className="bg-black/80 text-white px-6 py-3 rounded-lg backdrop-blur-sm border border-white/20">
+                    <div className="flex items-center gap-4 font-mono">
+                      <span className="text-lg font-bold">{matchInfo.homeTeam || "HOME"}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold">2</span>
+                        <span className="text-lg opacity-50">-</span>
+                        <span className="text-2xl font-bold">1</span>
+                      </div>
+                      <span className="text-lg font-bold">{matchInfo.awayTeam || "AWAY"}</span>
+                    </div>
+                    <div className="text-center text-xs opacity-75 mt-1">
+                      {Math.floor(currentTime / 60)}'
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
