@@ -172,6 +172,52 @@ const Index = () => {
     setIsCalibrated(false);
   };
 
+  // Helper functions for calibration
+  const getCalibrationInstruction = (mode: CalibrationMode, pointIndex: number): string => {
+    const instructions = {
+      "away-goal": [
+        "Click top-left corner of small goal area",
+        "Click top-right corner of small goal area", 
+        "Click bottom-left corner of small goal area",
+        "Click bottom-right corner of small goal area",
+        "Click top-left corner of large goal area",
+        "Click top-right corner of large goal area",
+        "Click bottom-left corner of large goal area",
+        "Click bottom-right corner of large goal area"
+      ],
+      "home-goal": [
+        "Click top-left corner of small goal area",
+        "Click top-right corner of small goal area",
+        "Click bottom-left corner of small goal area", 
+        "Click bottom-right corner of small goal area",
+        "Click top-left corner of large goal area",
+        "Click top-right corner of large goal area",
+        "Click bottom-left corner of large goal area",
+        "Click bottom-right corner of large goal area"
+      ],
+      "center-circle": [
+        "Click the Center Spot of the pitch",
+        "Click the Top of the Center Circle (closest to a goal)",
+        "Click the Right point of the Center Circle (on halfway line)",
+        "Click the Bottom of the Center Circle (furthest from a goal)",
+        "Click the Left point of the Center Circle (on halfway line)",
+        "Click the Midpoint of the Top Touchline",
+        "Click the Midpoint of the Bottom Touchline"
+      ]
+    };
+    
+    return instructions[mode][pointIndex] || "Calibration complete";
+  };
+
+  const getRequiredPoints = (mode: CalibrationMode): number => {
+    const requiredPoints = {
+      "away-goal": 8,
+      "home-goal": 8,
+      "center-circle": 7
+    };
+    return requiredPoints[mode];
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -230,22 +276,115 @@ const Index = () => {
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
             {/* Video and Canvas */}
             <div className="xl:col-span-3 space-y-4">
-              {!isCalibrated && (
-                /* Calibration Section */
-                <FieldCalibration
-                  mode={calibrationMode}
-                  onModeChange={handleCalibrationModeChange}
-                  calibrationPoints={calibrationPoints}
-                  onPointClick={handleCalibrationPointClick}
-                  onReset={handleCalibrationReset}
-                  onComplete={handleCalibrationComplete}
-                  isCompleted={isCalibrated}
+              {/* Video + Canvas Section */}
+              <div className="relative">
+                <VideoPlayer
+                  src={videoSrc}
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedData={handleVideoLoadedData}
                 />
-              )}
+                {/* Calibration Overlay */}
+                {!isCalibrated && (
+                  <div 
+                    className="absolute inset-0 bg-black/30 cursor-crosshair z-20"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const y = e.clientY - rect.top;
+                      handleCalibrationPointClick(x, y);
+                    }}
+                  >
+                    {/* Calibration Points */}
+                    {calibrationPoints.map((point, index) => (
+                      <div
+                        key={index}
+                        className="absolute w-4 h-4 bg-primary rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg animate-pulse"
+                        style={{ left: point.x, top: point.y }}
+                      >
+                        <span className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-bold bg-primary text-primary-foreground px-1 rounded">
+                          {index + 1}
+                        </span>
+                      </div>
+                    ))}
+                    
+                    {/* Calibration Instructions Overlay */}
+                    <div className="absolute top-4 left-4 right-4 bg-black/80 text-white p-4 rounded-lg max-w-md">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="h-5 w-5" />
+                        <h3 className="font-semibold">Field Calibration</h3>
+                      </div>
+                      
+                      {/* Mode Selection */}
+                      <div className="mb-3">
+                        <p className="text-sm mb-2">Camera view:</p>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant={calibrationMode === "away-goal" ? "default" : "outline"}
+                            onClick={() => handleCalibrationModeChange("away-goal")}
+                            className="text-xs px-2 py-1"
+                          >
+                            Away Goal
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={calibrationMode === "home-goal" ? "default" : "outline"}
+                            onClick={() => handleCalibrationModeChange("home-goal")}
+                            className="text-xs px-2 py-1"
+                          >
+                            Home Goal
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={calibrationMode === "center-circle" ? "default" : "outline"}
+                            onClick={() => handleCalibrationModeChange("center-circle")}
+                            className="text-xs px-2 py-1"
+                          >
+                            Center Circle
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Current Instruction */}
+                      <div className="mb-3">
+                        <div className="text-sm">
+                          <strong>Step {calibrationPoints.length + 1}:</strong>
+                          <br />
+                          {getCalibrationInstruction(calibrationMode, calibrationPoints.length)}
+                        </div>
+                        <div className="text-xs text-gray-300 mt-1">
+                          Progress: {calibrationPoints.length}/{getRequiredPoints(calibrationMode)}
+                        </div>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCalibrationReset}
+                          disabled={calibrationPoints.length === 0}
+                          className="text-xs px-2 py-1"
+                        >
+                          Reset
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleCalibrationComplete}
+                          disabled={calibrationPoints.length < getRequiredPoints(calibrationMode)}
+                          className="text-xs px-2 py-1"
+                        >
+                          Complete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               {isCalibrated && (
                 <>
                   {/* Match Info Form */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
                     <input
                       placeholder="Date"
                       value={matchInfo.date}
@@ -273,7 +412,7 @@ const Index = () => {
                   </div>
 
                   {/* Toolbar */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-4">
                     <DrawingToolbar
                       activeTool={activeTool}
                       onToolChange={setActiveTool}
@@ -299,57 +438,51 @@ const Index = () => {
                       {showFieldOverlay ? "Hide" : "Show"} Field
                     </Button>
                   </div>
-
-                  {/* Video + Canvas */}
-                  <div className="relative">
-                    <VideoPlayer
-                      src={videoSrc}
-                      onTimeUpdate={handleTimeUpdate}
-                      onLoadedData={handleVideoLoadedData}
-                    />
-                    
-                    {/* Field Overlay */}
-                    <FieldOverlay
-                      width={canvasSize.width}
-                      height={canvasSize.height}
-                      calibrationMode={calibrationMode}
-                      calibrationPoints={calibrationPoints}
-                      isVisible={showFieldOverlay && isCalibrated}
-                    />
-                    
-                    {/* Drawing Canvas */}
-                    <div className="absolute inset-0">
-                      <DrawingCanvas
-                        ref={canvasRef}
-                        width={canvasSize.width}
-                        height={canvasSize.height}
-                        activeTool={activeTool}
-                        activeColor={activeColor}
-                        brushSize={brushSize}
-                      />
-                    </div>
-
-                    {/* Match Overlay */}
-                    {matchInfo.homeTeam && matchInfo.awayTeam && (
-                      <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
-                        {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
-                      </div>
-                    )}
-                    {selectedClip?.name && (
-                      <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
-                        {selectedClip.name}
-                      </div>
-                    )}
-                    
-                    {/* Calibration Status */}
-                    {isCalibrated && (
-                      <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-mono">
-                        {calibrationMode.toUpperCase()} CALIBRATED
-                      </div>
-                    )}
-                  </div>
                 </>
               )}
+
+                {/* Field Overlay */}
+                <FieldOverlay
+                  width={canvasSize.width}
+                  height={canvasSize.height}
+                  calibrationMode={calibrationMode}
+                  calibrationPoints={calibrationPoints}
+                  isVisible={showFieldOverlay && isCalibrated}
+                />
+                
+                {/* Drawing Canvas */}
+                {isCalibrated && (
+                  <div className="absolute inset-0">
+                    <DrawingCanvas
+                      ref={canvasRef}
+                      width={canvasSize.width}
+                      height={canvasSize.height}
+                      activeTool={activeTool}
+                      activeColor={activeColor}
+                      brushSize={brushSize}
+                    />
+                  </div>
+                )}
+
+                {/* Match Overlay */}
+                {matchInfo.homeTeam && matchInfo.awayTeam && isCalibrated && (
+                  <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                    {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
+                  </div>
+                )}
+                {selectedClip?.name && isCalibrated && (
+                  <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                    {selectedClip.name}
+                  </div>
+                )}
+                
+                {/* Calibration Status */}
+                {isCalibrated && (
+                  <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-mono">
+                    {calibrationMode.toUpperCase()} CALIBRATED
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Sidebar */}
