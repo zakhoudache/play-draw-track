@@ -24,6 +24,8 @@ interface TimelineProps {
   className?: string;
 }
 
+export { type Clip };
+
 export const Timeline = ({
   duration,
   currentTime,

@@ -5,9 +5,11 @@ import { DrawingCanvas, DrawingCanvasRef } from "@/components/DrawingCanvas";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
 import { Timeline, type Clip } from "@/components/Timeline";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { FieldCalibration, type CalibrationMode, type CalibrationPoint } from "@/components/FieldCalibration";
+import { FieldOverlay } from "@/components/FieldOverlay";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Upload, FileVideo, Info } from "lucide-react";
+import { Upload, FileVideo, Info, Target } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -20,6 +22,12 @@ const Index = () => {
   const [clips, setClips] = useState<Clip[]>([]);
   const [selectedClip, setSelectedClip] = useState<Clip | undefined>(undefined);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 450 });
+
+  // Calibration state
+  const [isCalibrated, setIsCalibrated] = useState(false);
+  const [calibrationMode, setCalibrationMode] = useState<CalibrationMode>("center-circle");
+  const [calibrationPoints, setCalibrationPoints] = useState<CalibrationPoint[]>([]);
+  const [showFieldOverlay, setShowFieldOverlay] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DrawingCanvasRef>(null);
@@ -58,6 +66,8 @@ const Index = () => {
     setCurrentTime(0);
     setClips([]);
     setSelectedClip(undefined);
+    setIsCalibrated(false);
+    setCalibrationPoints([]);
   };
 
   // Sync canvas size with video
@@ -91,7 +101,7 @@ const Index = () => {
     };
     setClips((prev) => [...prev, newClip]);
     setSelectedClip(newClip);
-    toast.success(`Clip created: ${newClip.name}`);
+    toast.success(`Clip created: ${clipData.name}`);
   };
 
   const handleClipSelect = (clip: Clip) => {
@@ -135,6 +145,32 @@ const Index = () => {
   const handleDeleteSelected = () => canvasRef.current?.deleteSelected();
   const handleUndo = () => canvasRef.current?.undo();
   const handleRedo = () => canvasRef.current?.redo();
+
+  // Calibration handlers
+  const handleCalibrationPointClick = (x: number, y: number) => {
+    const newPoint: CalibrationPoint = {
+      x,
+      y,
+      label: `Point ${calibrationPoints.length + 1}`
+    };
+    setCalibrationPoints(prev => [...prev, newPoint]);
+  };
+
+  const handleCalibrationReset = () => {
+    setCalibrationPoints([]);
+    setIsCalibrated(false);
+  };
+
+  const handleCalibrationComplete = () => {
+    setIsCalibrated(true);
+    toast.success("Calibration completed! You can now start annotating.");
+  };
+
+  const handleCalibrationModeChange = (mode: CalibrationMode) => {
+    setCalibrationMode(mode);
+    setCalibrationPoints([]);
+    setIsCalibrated(false);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -194,81 +230,126 @@ const Index = () => {
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
             {/* Video and Canvas */}
             <div className="xl:col-span-3 space-y-4">
-              {/* Match Info Form */}
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  placeholder="Date"
-                  value={matchInfo.date}
-                  onChange={(e) => setMatchInfo({ ...matchInfo, date: e.target.value })}
-                  className="px-3 py-2 border rounded text-sm"
+              {!isCalibrated && (
+                /* Calibration Section */
+                <FieldCalibration
+                  mode={calibrationMode}
+                  onModeChange={handleCalibrationModeChange}
+                  calibrationPoints={calibrationPoints}
+                  onPointClick={handleCalibrationPointClick}
+                  onReset={handleCalibrationReset}
+                  onComplete={handleCalibrationComplete}
+                  isCompleted={isCalibrated}
                 />
-                <input
-                  placeholder="Competition"
-                  value={matchInfo.competition}
-                  onChange={(e) => setMatchInfo({ ...matchInfo, competition: e.target.value })}
-                  className="px-3 py-2 border rounded text-sm"
-                />
-                <input
-                  placeholder="Home Team"
-                  value={matchInfo.homeTeam}
-                  onChange={(e) => setMatchInfo({ ...matchInfo, homeTeam: e.target.value })}
-                  className="px-3 py-2 border rounded text-sm"
-                />
-                <input
-                  placeholder="Away Team"
-                  value={matchInfo.awayTeam}
-                  onChange={(e) => setMatchInfo({ ...matchInfo, awayTeam: e.target.value })}
-                  className="px-3 py-2 border rounded text-sm"
-                />
-              </div>
-
-              {/* Toolbar */}
-              <DrawingToolbar
-                activeTool={activeTool}
-                onToolChange={setActiveTool}
-                activeColor={activeColor}
-                onColorChange={setActiveColor}
-                brushSize={brushSize}
-                onBrushSizeChange={setBrushSize}
-                onClear={handleClearCanvas}
-                onDelete={handleDeleteSelected}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                onSave={handleSave}
-                onExport={handleExport}
-              />
-
-              {/* Video + Canvas */}
-              <div className="relative">
-                <VideoPlayer
-                  ref={videoRef}
-                  src={videoSrc}
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedData={handleVideoLoadedData}
-                />
-                <div className="absolute inset-0 pointer-events-none">
-                  <DrawingCanvas
-                    ref={canvasRef}
-                    width={canvasSize.width}
-                    height={canvasSize.height}
-                    activeTool={activeTool}
-                    activeColor={activeColor}
-                    brushSize={brushSize}
-                  />
-                </div>
-
-                {/* Match Overlay */}
-                {matchInfo.homeTeam && matchInfo.awayTeam && (
-                  <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
-                    {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
+              )}
+              {isCalibrated && (
+                <>
+                  {/* Match Info Form */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Date"
+                      value={matchInfo.date}
+                      onChange={(e) => setMatchInfo({ ...matchInfo, date: e.target.value })}
+                      className="px-3 py-2 border rounded text-sm"
+                    />
+                    <input
+                      placeholder="Competition"
+                      value={matchInfo.competition}
+                      onChange={(e) => setMatchInfo({ ...matchInfo, competition: e.target.value })}
+                      className="px-3 py-2 border rounded text-sm"
+                    />
+                    <input
+                      placeholder="Home Team"
+                      value={matchInfo.homeTeam}
+                      onChange={(e) => setMatchInfo({ ...matchInfo, homeTeam: e.target.value })}
+                      className="px-3 py-2 border rounded text-sm"
+                    />
+                    <input
+                      placeholder="Away Team"
+                      value={matchInfo.awayTeam}
+                      onChange={(e) => setMatchInfo({ ...matchInfo, awayTeam: e.target.value })}
+                      className="px-3 py-2 border rounded text-sm"
+                    />
                   </div>
-                )}
-                {selectedClip?.name && (
-                  <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
-                    {selectedClip.name}
+
+                  {/* Toolbar */}
+                  <div className="flex items-center justify-between">
+                    <DrawingToolbar
+                      activeTool={activeTool}
+                      onToolChange={setActiveTool}
+                      activeColor={activeColor}
+                      onColorChange={setActiveColor}
+                      brushSize={brushSize}
+                      onBrushSizeChange={setBrushSize}
+                      onClear={handleClearCanvas}
+                      onDelete={handleDeleteSelected}
+                      onUndo={handleUndo}
+                      onRedo={handleRedo}
+                      onSave={handleSave}
+                      onExport={handleExport}
+                    />
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFieldOverlay(!showFieldOverlay)}
+                      className="gap-2"
+                    >
+                      <Target className="h-4 w-4" />
+                      {showFieldOverlay ? "Hide" : "Show"} Field
+                    </Button>
                   </div>
-                )}
-              </div>
+
+                  {/* Video + Canvas */}
+                  <div className="relative">
+                    <VideoPlayer
+                      src={videoSrc}
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedData={handleVideoLoadedData}
+                    />
+                    
+                    {/* Field Overlay */}
+                    <FieldOverlay
+                      width={canvasSize.width}
+                      height={canvasSize.height}
+                      calibrationMode={calibrationMode}
+                      calibrationPoints={calibrationPoints}
+                      isVisible={showFieldOverlay && isCalibrated}
+                    />
+                    
+                    {/* Drawing Canvas */}
+                    <div className="absolute inset-0">
+                      <DrawingCanvas
+                        ref={canvasRef}
+                        width={canvasSize.width}
+                        height={canvasSize.height}
+                        activeTool={activeTool}
+                        activeColor={activeColor}
+                        brushSize={brushSize}
+                      />
+                    </div>
+
+                    {/* Match Overlay */}
+                    {matchInfo.homeTeam && matchInfo.awayTeam && (
+                      <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                        {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
+                      </div>
+                    )}
+                    {selectedClip?.name && (
+                      <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                        {selectedClip.name}
+                      </div>
+                    )}
+                    
+                    {/* Calibration Status */}
+                    {isCalibrated && (
+                      <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-mono">
+                        {calibrationMode.toUpperCase()} CALIBRATED
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Sidebar */}
