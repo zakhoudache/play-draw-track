@@ -21,10 +21,6 @@ export const KeyboardShortcuts = ({ className }: KeyboardShortcutsProps) => {
           <h4 className="font-medium mb-2 text-muted-foreground">Tools</h4>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex justify-between">
-  <span>Player Circle</span>
-  <Badge variant="outline" className="text-xs">E</Badge>
-</div>
-            <div className="flex justify-between">
               <span>Select</span>
               <Badge variant="outline" className="text-xs">V</Badge>
             </div>

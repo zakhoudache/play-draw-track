@@ -1,11 +1,10 @@
 // pages/Index.tsx
 import { useState, useRef, useEffect } from "react";
-import { VideoPlayer, VideoPlayerRef } from "@/components/VideoPlayer";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { DrawingCanvas, DrawingCanvasRef } from "@/components/DrawingCanvas";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
 import { Timeline, type Clip } from "@/components/Timeline";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
-import { TacticalOverlay } from "@/components/TacticalOverlay";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileVideo, Info } from "lucide-react";
@@ -15,18 +14,16 @@ const Index = () => {
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [activeTool, setActiveTool] = useState<"select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text" | "ellipse">("select");
+  const [activeTool, setActiveTool] = useState<"select" | "draw" | "rectangle" | "circle" | "line" | "triangle" | "text">("select");
   const [activeColor, setActiveColor] = useState("#0EA5E9");
   const [brushSize, setBrushSize] = useState(3);
   const [clips, setClips] = useState<Clip[]>([]);
   const [selectedClip, setSelectedClip] = useState<Clip | undefined>(undefined);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 450 });
-  const [tacticalInsights, setTacticalInsights] = useState<any[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DrawingCanvasRef>(null);
-  const videoRef = useRef<VideoPlayerRef>(null);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Match Info
   const [matchInfo, setMatchInfo] = useState({
@@ -66,20 +63,15 @@ const Index = () => {
   // Sync canvas size with video
   useEffect(() => {
     const updateSize = () => {
-      if (videoContainerRef.current) {
-        const video = videoContainerRef.current.querySelector('video');
-        if (video) {
-          setCanvasSize({
-            width: video.clientWidth,
-            height: video.clientHeight,
-          });
-        }
+      if (videoRef.current) {
+        setCanvasSize({
+          width: videoRef.current.clientWidth,
+          height: videoRef.current.clientHeight,
+        });
       }
     };
     window.addEventListener("resize", updateSize);
-    if (videoSrc) {
-      setTimeout(updateSize, 100); // Allow video to load
-    }
+    if (videoSrc) updateSize();
     return () => window.removeEventListener("resize", updateSize);
   }, [videoSrc]);
 
@@ -95,7 +87,7 @@ const Index = () => {
     const newClip = {
       ...clipData,
       id: crypto.randomUUID(),
-      annotations: "", // Will store Fabric.js JSON
+      annotations: "",
     };
     setClips((prev) => [...prev, newClip]);
     setSelectedClip(newClip);
@@ -104,10 +96,6 @@ const Index = () => {
 
   const handleClipSelect = (clip: Clip) => {
     setSelectedClip(clip);
-    if (videoRef.current) {
-      videoRef.current.seek(clip.startTime);
-      setCurrentTime(clip.startTime);
-    }
     if (!canvasRef.current) return;
 
     canvasRef.current.clearCanvas();
@@ -141,16 +129,6 @@ const Index = () => {
       return;
     }
     canvasRef.current?.exportAsImage();
-  };
-
-  const handleAddTacticalInsight = (insight: any) => {
-    const newInsight = {
-      ...insight,
-      id: crypto.randomUUID(),
-      clipId: selectedClip?.id
-    };
-    setTacticalInsights(prev => [...prev, newInsight]);
-    toast.success("Tactical insight added");
   };
 
   const handleClearCanvas = () => canvasRef.current?.clearCanvas();
@@ -261,14 +239,14 @@ const Index = () => {
               />
 
               {/* Video + Canvas */}
-              <div ref={videoContainerRef} className="relative">
+              <div className="relative">
                 <VideoPlayer
                   ref={videoRef}
                   src={videoSrc}
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedData={handleVideoLoadedData}
                 />
-                <div className="absolute inset-0">
+                <div className="absolute inset-0 pointer-events-none">
                   <DrawingCanvas
                     ref={canvasRef}
                     width={canvasSize.width}
@@ -276,49 +254,20 @@ const Index = () => {
                     activeTool={activeTool}
                     activeColor={activeColor}
                     brushSize={brushSize}
-                    currentTime={currentTime}
                   />
                 </div>
 
-                {/* Enhanced Tactical Overlay */}
-                <TacticalOverlay
-                  currentTime={currentTime}
-                  onAddInsight={handleAddTacticalInsight}
-                  insights={tacticalInsights.filter(i => i.clipId === selectedClip?.id)}
-                />
-
-                {/* Match Info Overlay */}
+                {/* Match Overlay */}
                 {matchInfo.homeTeam && matchInfo.awayTeam && (
-                  <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm font-mono backdrop-blur-sm">
-                    <div className="font-semibold">{matchInfo.homeTeam} vs {matchInfo.awayTeam}</div>
-                    <div className="text-xs opacity-75">{matchInfo.date} • {matchInfo.competition}</div>
+                  <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                    {matchInfo.date} – {matchInfo.homeTeam} vs {matchInfo.awayTeam}
                   </div>
                 )}
-
-                {/* Clip Info Overlay */}
                 {selectedClip?.name && (
-                  <div className="absolute bottom-20 left-2 bg-primary/90 text-primary-foreground px-3 py-2 rounded-lg text-sm font-medium backdrop-blur-sm">
-                    📹 {selectedClip.name}
+                  <div className="absolute bottom-20 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                    {selectedClip.name}
                   </div>
                 )}
-
-                {/* Scoreboard Overlay */}
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                  <div className="bg-black/80 text-white px-6 py-3 rounded-lg backdrop-blur-sm border border-white/20">
-                    <div className="flex items-center gap-4 font-mono">
-                      <span className="text-lg font-bold">{matchInfo.homeTeam || "HOME"}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">2</span>
-                        <span className="text-lg opacity-50">-</span>
-                        <span className="text-2xl font-bold">1</span>
-                      </div>
-                      <span className="text-lg font-bold">{matchInfo.awayTeam || "AWAY"}</span>
-                    </div>
-                    <div className="text-center text-xs opacity-75 mt-1">
-                      {Math.floor(currentTime / 60)}'
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 

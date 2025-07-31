@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
@@ -11,16 +11,7 @@ interface VideoPlayerProps {
   className?: string;
 }
 
-export interface VideoPlayerRef {
-  currentTime: number;
-  duration: number;
-  play: () => void;
-  pause: () => void;
-  seek: (time: number) => void;
-}
-
-export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  ({ src, onTimeUpdate, onLoadedData, className }, ref) => {
+export const VideoPlayer = ({ src, onTimeUpdate, onLoadedData, className }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -100,25 +91,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  useImperativeHandle(ref, () => ({
-    currentTime,
-    duration,
-    play: () => {
-      videoRef.current?.play();
-      setIsPlaying(true);
-    },
-    pause: () => {
-      videoRef.current?.pause();
-      setIsPlaying(false);
-    },
-    seek: (time: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
-        setCurrentTime(time);
-      }
-    }
-  }), [currentTime, duration]);
-
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -143,7 +115,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         src={src}
         className="w-full aspect-video bg-black"
         onContextMenu={(e) => e.preventDefault()}
-        onClick={togglePlay}
       />
       
       {/* Video Controls Overlay */}
@@ -218,6 +189,4 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       </div>
     </div>
   );
-});
-
-VideoPlayer.displayName = "VideoPlayer";
+};
