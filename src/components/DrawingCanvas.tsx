@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { Canvas as FabricCanvas, Circle, Rect, Path, Line, Polygon, IText } from "fabric";
 import { toast } from "sonner";
+import { Homography, type Point } from "@/lib/homography";
 
 interface DrawingCanvasProps {
   width: number;
@@ -10,6 +11,8 @@ interface DrawingCanvasProps {
   brushSize: number;
   onAnnotationChange?: (annotations: any) => void;
   className?: string;
+  homography?: number[] | null;
+  inverseHomography?: number[] | null;
 }
 
 export interface DrawingCanvasRef {
@@ -28,7 +31,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   activeColor,
   brushSize,
   onAnnotationChange,
-  className
+  className,
+  homography,
+  inverseHomography
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -43,6 +48,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       height,
       backgroundColor: "transparent",
       selection: activeTool === "select",
+      enableRetinaScaling: false, // Important for coordinate consistency
     });
 
     // Configure free drawing brush
@@ -71,16 +77,29 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       fabricCanvas.freeDrawingBrush.width = brushSize;
     }
 
-    // Handle shape creation
+    // Handle shape creation with field-aware sizing if homography is available
+    const getFieldAwareSize = (pixelSize: number) => {
+      if (!homography) return pixelSize;
+      // Transform a reference distance to get field-aware scaling
+      const p1 = { x: width / 2, y: height / 2 };
+      const p2 = { x: width / 2 + pixelSize, y: height / 2 };
+      const realP1 = Homography.transform(p1, homography);
+      const realP2 = Homography.transform(p2, homography);
+      const realDistance = Math.hypot(realP2.x - realP1.x, realP2.y - realP1.y);
+      // Keep size reasonable (1-5 meters on field)
+      return Math.max(20, Math.min(100, pixelSize * (3 / Math.max(0.1, realDistance))));
+    };
+
     if (activeTool === "rectangle") {
+      const size = getFieldAwareSize(80);
       const rect = new Rect({
-        left: 50,
-        top: 50,
+        left: width / 2 - size / 2,
+        top: height / 2 - size / 2,
         fill: "transparent",
         stroke: activeColor,
         strokeWidth: brushSize,
-        width: 100,
-        height: 60,
+        width: size,
+        height: size * 0.6,
         cornerStyle: "circle",
         cornerColor: activeColor,
         cornerSize: 8,
@@ -89,13 +108,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       fabricCanvas.setActiveObject(rect);
       saveToHistory();
     } else if (activeTool === "circle") {
+      const radius = getFieldAwareSize(50);
       const circle = new Circle({
-        left: 50,
-        top: 50,
+        left: width / 2 - radius,
+        top: height / 2 - radius,
         fill: "transparent",
         stroke: activeColor,
         strokeWidth: brushSize,
-        radius: 50,
+        radius: radius,
         cornerStyle: "circle",
         cornerColor: activeColor,
         cornerSize: 8,
@@ -104,7 +124,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       fabricCanvas.setActiveObject(circle);
       saveToHistory();
     } else if (activeTool === "line") {
-      const line = new Line([50, 50, 150, 50], {
+      const lineLength = getFieldAwareSize(100);
+      const startX = width / 2 - lineLength / 2;
+      const endX = width / 2 + lineLength / 2;
+      const centerY = height / 2;
+      const line = new Line([startX, centerY, endX, centerY], {
         stroke: activeColor,
         strokeWidth: brushSize,
         selectable: true,
@@ -116,13 +140,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       fabricCanvas.setActiveObject(line);
       saveToHistory();
     } else if (activeTool === "triangle") {
+      const size = getFieldAwareSize(80);
       const triangle = new Polygon([
-        { x: 100, y: 0 },
-        { x: 0, y: 100 },
-        { x: 200, y: 100 }
+        { x: size / 2, y: 0 },
+        { x: 0, y: size },
+        { x: size, y: size }
       ], {
-        left: 50,
-        top: 50,
+        left: width / 2 - size / 2,
+        top: height / 2 - size / 2,
         fill: "transparent",
         stroke: activeColor,
         strokeWidth: brushSize,
@@ -134,11 +159,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       fabricCanvas.setActiveObject(triangle);
       saveToHistory();
     } else if (activeTool === "text") {
+      const fontSize = homography ? Math.max(12, getFieldAwareSize(20)) : Math.max(16, brushSize * 4);
       const text = new IText("Click to edit", {
-        left: 50,
-        top: 50,
+        left: width / 2 - 50,
+        top: height / 2 - fontSize / 2,
         fill: activeColor,
-        fontSize: Math.max(16, brushSize * 4),
+        fontSize: fontSize,
         fontFamily: "Arial",
         cornerStyle: "circle",
         cornerColor: activeColor,

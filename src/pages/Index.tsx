@@ -7,6 +7,7 @@ import { Timeline, type Clip } from "@/components/Timeline";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { FieldCalibration, type CalibrationMode, type CalibrationPoint } from "@/components/FieldCalibration";
 import { FieldOverlay } from "@/components/FieldOverlay";
+import { Homography, getFieldReferencePoints } from "@/lib/homography";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileVideo, Info, Target } from "lucide-react";
@@ -28,6 +29,8 @@ const Index = () => {
   const [calibrationMode, setCalibrationMode] = useState<CalibrationMode>("center-circle");
   const [calibrationPoints, setCalibrationPoints] = useState<CalibrationPoint[]>([]);
   const [showFieldOverlay, setShowFieldOverlay] = useState(true);
+  const [homography, setHomography] = useState<number[] | null>(null);
+  const [inverseHomography, setInverseHomography] = useState<number[] | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DrawingCanvasRef>(null);
@@ -68,6 +71,8 @@ const Index = () => {
     setSelectedClip(undefined);
     setIsCalibrated(false);
     setCalibrationPoints([]);
+    setHomography(null);
+    setInverseHomography(null);
   };
 
   // Sync canvas size with video
@@ -159,17 +164,38 @@ const Index = () => {
   const handleCalibrationReset = () => {
     setCalibrationPoints([]);
     setIsCalibrated(false);
+    setHomography(null);
+    setInverseHomography(null);
   };
 
   const handleCalibrationComplete = () => {
-    setIsCalibrated(true);
-    toast.success("Calibration completed! You can now start annotating.");
+    // Compute homography matrices
+    const fieldPoints = getFieldReferencePoints(calibrationMode);
+    const imagePoints = calibrationPoints.map(p => ({ x: p.x, y: p.y }));
+    
+    if (imagePoints.length >= fieldPoints.length) {
+      const inverseH = Homography.compute(fieldPoints, imagePoints);
+      const forwardH = inverseH ? Homography.invert(inverseH) : null;
+      
+      if (inverseH && forwardH) {
+        setInverseHomography(inverseH);
+        setHomography(forwardH);
+        setIsCalibrated(true);
+        toast.success("Calibration completed! You can now start annotating.");
+      } else {
+        toast.error("Calibration failed. Please try again with more accurate points.");
+      }
+    } else {
+      toast.error("Not enough calibration points.");
+    }
   };
 
   const handleCalibrationModeChange = (mode: CalibrationMode) => {
     setCalibrationMode(mode);
     setCalibrationPoints([]);
     setIsCalibrated(false);
+    setHomography(null);
+    setInverseHomography(null);
   };
 
   // Helper functions for calibration
@@ -460,6 +486,8 @@ const Index = () => {
                       activeTool={activeTool}
                       activeColor={activeColor}
                       brushSize={brushSize}
+                      homography={homography}
+                      inverseHomography={inverseHomography}
                     />
                   </div>
                 )}
