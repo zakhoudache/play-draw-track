@@ -335,7 +335,10 @@ const Index = () => {
                     ))}
                     
                     {/* Calibration Instructions Overlay */}
-                    <div className="absolute top-4 left-4 right-4 bg-black/80 text-white p-4 rounded-lg max-w-md">
+                    <div 
+                      className="absolute top-4 left-4 right-4 bg-black/80 text-white p-4 rounded-lg max-w-md"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex items-center gap-2 mb-2">
                         <Target className="h-5 w-5" />
                         <h3 className="font-semibold">Field Calibration</h3>
