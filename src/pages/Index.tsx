@@ -191,11 +191,12 @@ const Index = () => {
   };
 
   const handleCalibrationModeChange = (mode: CalibrationMode) => {
-    setCalibrationMode(mode);
+    // Reset all calibration state when switching modes
     setCalibrationPoints([]);
     setIsCalibrated(false);
     setHomography(null);
     setInverseHomography(null);
+    setCalibrationMode(mode);
   };
 
   // Helper functions for calibration
